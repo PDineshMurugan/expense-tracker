@@ -21,12 +21,7 @@
             "input": "public"
           }
         ],
-        "styles": ["./src/styles.scss"],
-        "server": "src/main.server.ts",
-        "ssr": {
-          "entry": "src/server.ts"
-        },
-        "outputMode": "server"
+        "styles": ["./src/styles.scss"]
       },
       "configurations": {
         "production": {
@@ -74,16 +69,6 @@
     "test": {
       "executor": "@angular/build:unit-test",
       "options": {}
-    },
-    "serve-static": {
-      "continuous": true,
-      "executor": "@nx/web:file-server",
-      "options": {
-        "buildTarget": "expense-tracker:build",
-        "port": 4200,
-        "staticFilePath": "dist/expense-tracker/browser",
-        "spa": true
-      }
     }
   }
 }

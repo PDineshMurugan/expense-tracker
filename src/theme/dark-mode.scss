@@ -1,0 +1,37 @@
+// ── Dark Mode Overrides (Premium) ──
+
+body.dark {
+    --color-bg: #0d1117;
+    --color-surface: #161b22;
+    --color-surface-alt: #21262d;
+    --color-text: #f0f6fc;
+    --color-text-secondary: #8b949e;
+    --color-primary-light: #58a6ff;
+    --color-primary-rgb: 88, 166, 255;
+    --color-warning-bg: rgba(245, 158, 11, 0.15);
+
+    // Gradients
+    --gradient-primary: linear-gradient(135deg, #1e3a5f 0%, #58a6ff 100%);
+    --gradient-hero: linear-gradient(135deg, #161b22 0%, #1e3a5f 50%, #7c3aed 100%);
+
+    // Glassmorphism (dark)
+    --glass-bg: rgba(22, 27, 34, 0.75);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+    // Shadows
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.45);
+    --shadow-glow: 0 0 20px rgba(88, 166, 255, 0.15);
+    --shadow-accent-glow: 0 0 20px rgba(16, 185, 129, 0.2);
+
+    // Ionic dark overrides
+    --ion-background-color: var(--color-bg);
+    --ion-text-color: var(--color-text);
+    --ion-toolbar-background: var(--color-surface);
+    --ion-tab-bar-background: var(--color-surface);
+    --ion-item-background: var(--color-surface);
+    --ion-tab-bar-border-color: #21262d;
+    --ion-toolbar-border-color: #21262d;
+}

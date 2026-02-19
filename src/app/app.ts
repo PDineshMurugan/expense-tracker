@@ -1,13 +1,17 @@
 import { Component } from '@angular/core';
-import { RouterModule } from '@angular/router';
-import { NxWelcome } from './nx-welcome';
+import { IonApp, IonRouterOutlet } from '@ionic/angular/standalone';
+import { NotificationToastComponent } from './shared/notification-toast.component';
 
 @Component({
-  imports: [NxWelcome, RouterModule],
   selector: 'app-root',
-  templateUrl: './app.html',
-  styleUrl: './app.scss',
+  standalone: true,
+  imports: [IonApp, IonRouterOutlet, NotificationToastComponent],
+  template: `
+    <ion-app>
+      <ion-router-outlet></ion-router-outlet>
+    </ion-app>
+    <app-notification-toast></app-notification-toast>
+  `,
+  styles: [`:host { display: block; }`]
 })
-export class App {
-  protected title = 'expense-tracker';
-}
+export class App { }
