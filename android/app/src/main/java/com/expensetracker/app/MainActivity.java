@@ -5,6 +5,9 @@ import android.content.pm.PackageManager;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.content.ComponentName;
+import android.text.TextUtils;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -21,6 +24,10 @@ public class MainActivity extends BridgeActivity {
         notificationReceiver = new NotificationReceiver();
         android.content.IntentFilter filter = new android.content.IntentFilter("com.expensetracker.app.NOTIFICATION_LISTENER");
         registerReceiver(notificationReceiver, filter);
+
+        if (!isNotificationServiceEnabled()) {
+            startActivity(new android.content.Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));
+        }
     }
     
     @Override
@@ -45,6 +52,21 @@ public class MainActivity extends BridgeActivity {
                     SMS_PERMISSION_CODE
             );
         }
+    }
+
+    private boolean isNotificationServiceEnabled() {
+        String pkgName = getPackageName();
+        final String flat = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
+        if (!TextUtils.isEmpty(flat)) {
+            final String[] names = flat.split(":");
+            for (int i = 0; i < names.length; i++) {
+                ComponentName cn = ComponentName.unflattenFromString(names[i]);
+                if (cn != null && TextUtils.equals(pkgName, cn.getPackageName())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private class NotificationReceiver extends android.content.BroadcastReceiver {

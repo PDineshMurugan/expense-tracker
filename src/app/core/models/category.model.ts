@@ -1,20 +1,23 @@
 export interface Category {
     id: string;
+    name: string;
     icon: string;
-    label: string;
-    color: string;
+    type: 'expense' | 'income';
+    isSystem: boolean;
+    color?: string; // Optional for UI coloring
 }
 
 export const DEFAULT_CATEGORIES: Category[] = [
-    { id: 'food', icon: 'fast-food', label: 'Food', color: '#ef4444' },
-    { id: 'transport', icon: 'car', label: 'Transport', color: '#3b82f6' },
-    { id: 'shopping', icon: 'cart', label: 'Shopping', color: '#8b5cf6' },
-    { id: 'entertainment', icon: 'film', label: 'Entertainment', color: '#ec4899' },
-    { id: 'health', icon: 'medkit', label: 'Health', color: '#10b981' },
-    { id: 'bills', icon: 'receipt', label: 'Bills', color: '#f59e0b' },
-    { id: 'rent', icon: 'home', label: 'Rent', color: '#6366f1' },
-    { id: 'education', icon: 'school', label: 'Education', color: '#14b8a6' },
-    { id: 'travel', icon: 'airplane', label: 'Travel', color: '#06b6d4' },
-    { id: 'transfer', icon: 'swap-horizontal', label: 'Transfer', color: '#64748b' },
-    { id: 'other', icon: 'gift', label: 'Other', color: '#78716c' },
+    { id: '1', name: 'Food', icon: 'fast-food', type: 'expense', isSystem: true, color: '#ef4444' },
+    { id: '2', name: 'Transport', icon: 'car', type: 'expense', isSystem: true, color: '#3b82f6' },
+    { id: '3', name: 'Shopping', icon: 'cart', type: 'expense', isSystem: true, color: '#8b5cf6' },
+    { id: '4', name: 'Entertainment', icon: 'film', type: 'expense', isSystem: true, color: '#ec4899' },
+    { id: '5', name: 'Health', icon: 'medkit', type: 'expense', isSystem: true, color: '#10b981' },
+    { id: '6', name: 'Bills', icon: 'receipt', type: 'expense', isSystem: true, color: '#f59e0b' },
+    { id: '7', name: 'Rent', icon: 'home', type: 'expense', isSystem: true, color: '#6366f1' },
+    { id: '8', name: 'Education', icon: 'school', type: 'expense', isSystem: true, color: '#14b8a6' },
+    { id: '9', name: 'Travel', icon: 'airplane', type: 'expense', isSystem: true, color: '#06b6d4' },
+    { id: '10', name: 'Transfer', icon: 'swap-horizontal', type: 'expense', isSystem: true, color: '#64748b' },
+    { id: '11', name: 'Salary', icon: 'cash', type: 'income', isSystem: true, color: '#22c55e' },
+    { id: '12', name: 'Other', icon: 'gift', type: 'expense', isSystem: true, color: '#78716c' },
 ];

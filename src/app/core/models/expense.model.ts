@@ -1,25 +1,23 @@
+export type PaymentMode = 'Cash' | 'Credit Card' | 'Debit Card' | 'UPI' | 'Net Banking' | 'Wallet' | 'Other';
+export const PAYMENT_MODES: PaymentMode[] = ['Cash', 'Credit Card', 'Debit Card', 'UPI', 'Net Banking', 'Wallet', 'Other'];
 export interface Expense {
     id: string;
+
     amount: number;
-    category: string;       // icon name
-    categoryLabel: string;  // human label
-    note: string;
-    date: string;           // ISO date string (YYYY-MM-DD)
-    paymentMode: PaymentMode;
-    createdAt: string;      // ISO datetime
-    source?: 'manual' | 'sms';  // origin of expense
-    smsBody?: string;       // original SMS text if from SMS
+    date: string; // ISO string 
+    type: 'debit' | 'credit';
 
-    // Account & Transaction Enhancements
-    accountId?: string;     // links transaction to account
-    type?: 'debit' | 'credit';
-    isTransfer?: boolean;   // marks transfer transactions
-    transferPairId?: string; // links both sides of transfer
-    smsId?: string;         // unique SMS reference for deduplication
-    merchant?: string;      // extracted payee name
-    rawText?: string;       // original SMS text for debugging
+    categoryId: string;
+    accountId: string;
+
+    source: 'manual' | 'sms' | 'notification' | 'import';
+    parserVersion?: number;
+
+    encryptedPayload?: string; // Encrypted (merchantName, accountIdentifier, notes, rawSms)
+
+    // Unencrypted legacy fields (remove these if enforcing full encryption, but keeping for compatibility if needed or strictly following prompt schema to move them to payload)
+    // Removed raw category string, categoryLabel, note, paymentMode, isTransfer, smsBody, smsId, merchant to payload or handled by ID mappings
+
+    createdAt: string; // ISO string
+    updatedAt?: string; // ISO string
 }
-
-export type PaymentMode = 'UPI' | 'Cash' | 'Card';
-
-export const PAYMENT_MODES: PaymentMode[] = ['UPI', 'Cash', 'Card'];

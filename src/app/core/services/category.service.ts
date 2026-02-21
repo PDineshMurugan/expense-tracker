@@ -1,49 +1,52 @@
 import { Injectable, signal } from '@angular/core';
-import { StorageService } from './storage.service';
+import { StorageService } from '../storage/storage.service';
 import { Category, DEFAULT_CATEGORIES } from '../models/category.model';
 
 @Injectable({ providedIn: 'root' })
 export class CategoryService {
     private _categories = signal<Category[]>([]);
-
     readonly categories = this._categories.asReadonly();
 
     constructor(private storage: StorageService) {
         this.loadCategories();
     }
 
-    private async loadCategories(): Promise<void> {
-        let categories = await this.storage.getAllCategories();
+    async loadCategories(): Promise<void> {
+        const db = await this.storage.ready();
+        let categories = await db.getAll('categories');
 
-        // Seed defaults if empty
         if (categories.length === 0) {
+            const tx = db.transaction('categories', 'readwrite');
+            const store = tx.objectStore('categories');
             for (const cat of DEFAULT_CATEGORIES) {
-                await this.storage.putCategory(cat);
+                await store.put(cat);
             }
-            categories = DEFAULT_CATEGORIES;
+            await tx.done;
+            categories = [...DEFAULT_CATEGORIES];
         }
 
         this._categories.set(categories);
     }
 
     async addCategory(category: Category): Promise<void> {
-        await this.storage.putCategory(category);
-        this._categories.update(list => [...list, category]);
+        const db = await this.storage.ready();
+        await db.put('categories', category);
+        await this.loadCategories();
     }
 
     async updateCategory(category: Category): Promise<void> {
-        await this.storage.putCategory(category);
-        this._categories.update(list =>
-            list.map(c => c.id === category.id ? category : c)
-        );
+        const db = await this.storage.ready();
+        await db.put('categories', category);
+        await this.loadCategories();
     }
 
     async deleteCategory(id: string): Promise<void> {
-        await this.storage.deleteCategory(id);
-        this._categories.update(list => list.filter(c => c.id !== id));
-    }
-
-    getCategoryByIcon(icon: string): Category | undefined {
-        return this._categories().find(c => c.icon === icon);
+        const db = await this.storage.ready();
+        const cat = await db.get('categories', id);
+        if (cat?.isSystem) {
+            throw new Error('Cannot delete system category');
+        }
+        await db.delete('categories', id);
+        await this.loadCategories();
     }
 }

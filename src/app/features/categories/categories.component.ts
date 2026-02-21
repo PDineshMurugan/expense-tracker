@@ -81,7 +81,7 @@ import {
               <div class="category-icon-wrap">
                 <ion-icon [name]="cat.icon" class="category-icon"></ion-icon>
               </div>
-              <span class="category-label">{{ cat.label }}</span>
+              <span class="category-label">{{ cat.name }}</span>
               <button class="delete-btn" (click)="deleteCategory(cat.id)" [attr.id]="'delete-' + cat.id">
                 <ion-icon name="trash-outline" class="delete-icon-native"></ion-icon>
               </button>
@@ -343,8 +343,10 @@ export class CategoriesComponent {
     const category: Category = {
       id: this.newLabel().toLowerCase().replace(/\s+/g, '-'),
       icon: this.newIcon().trim(),
-      label: this.newLabel().trim(),
+      name: this.newLabel().trim(),
       color: '#78716c',
+      type: 'expense',
+      isSystem: false
     };
     await this.categoryService.addCategory(category);
     this.newIcon.set('');

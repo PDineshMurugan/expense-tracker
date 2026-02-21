@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonContent, IonHeader, IonToolbar, IonTitle, IonIcon
@@ -11,7 +11,7 @@ import { Expense } from '../../core/models/expense.model';
 import { addIcons } from 'ionicons';
 import {
   barChart, wallet, receipt, trendingUp, search, calendar,
-  fastFood, car, cart, film, medkit, home, school, airplane, gift
+  fastFood, car, cart, film, medkit, home, school, airplane, gift, helpOutline
 } from 'ionicons/icons';
 
 @Component({
@@ -56,7 +56,7 @@ import {
               <select class="filter-select" [value]="selectedCategoryId()" (change)="onCategoryChange($event)" id="category-select">
                 <option value="all">All Categories</option>
                 @for (cat of categoryService.categories(); track cat.id) {
-                  <option [value]="cat.id">{{ cat.label }}</option>
+                  <option [value]="cat.id">{{ cat.name }}</option>
                 }
               </select>
               <span class="select-arrow">▾</span>
@@ -75,7 +75,7 @@ import {
         <div class="glass-card kpi-card kpi-card--count">
           <ion-icon name="receipt" class="kpi-icon"></ion-icon>
           <span class="kpi-label">Count</span>
-          <span class="kpi-value">{{ filteredExpenses().length }}</span>
+          <span class="kpi-value">{{ currentExpenses().length }}</span>
         </div>
         <div class="glass-card kpi-card kpi-card--avg">
           <ion-icon name="trending-up" class="kpi-icon"></ion-icon>
@@ -85,22 +85,22 @@ import {
       </div>
 
       <!-- Expense List -->
-      @if (filteredExpenses().length > 0) {
+      @if (currentExpenses().length > 0) {
         <div class="expense-list stagger-children">
-          @for (expense of filteredExpenses(); track expense.id) {
+          @for (expense of currentExpenses(); track expense.id) {
             <div class="glass-card expense-card">
               <div class="expense-row">
                 <div class="expense-icon-wrap">
-                  <ion-icon [name]="expense.category" class="expense-icon"></ion-icon>
+                  <ion-icon [name]="getCategoryIcon(expense.categoryId)" class="expense-icon"></ion-icon>
                 </div>
                 <div class="expense-info">
-                  <span class="expense-label">{{ expense.categoryLabel }}</span>
-                  <span class="expense-meta">{{ formatDate(expense.date) }} · {{ expense.paymentMode }}</span>
+                  <span class="expense-label">{{ getCategoryName(expense.categoryId) }}</span>
+                  <span class="expense-meta">{{ formatDate(expense.date) }}</span>
                 </div>
                 <span class="expense-amount">-{{ expense.amount | currency }}</span>
               </div>
-              @if (expense.note) {
-                <p class="expense-note">{{ expense.note }}</p>
+              @if (getNote(expense)) {
+                <p class="expense-note">{{ getNote(expense) }}</p>
               }
             </div>
           }
@@ -309,42 +309,51 @@ import {
     }
   `]
 })
-export class ReportsComponent {
+export class ReportsComponent implements OnInit {
   protected readonly expenseService = inject(ExpenseService);
   protected readonly categoryService = inject(CategoryService);
 
   constructor() {
     addIcons({
       barChart, wallet, receipt, trendingUp, search, calendar,
-      fastFood, car, cart, film, medkit, home, school, airplane, gift
+      fastFood, car, cart, film, medkit, home, school, airplane, gift, helpOutline
     });
   }
 
   readonly selectedMonth = signal<string>(this.getCurrentMonth());
   readonly selectedCategoryId = signal<string>('all');
 
+  readonly currentExpenses = signal<Expense[]>([]);
+
   readonly months = this.generateMonths();
 
-  readonly filteredExpenses = computed((): Expense[] => {
-    const [year, month] = this.selectedMonth().split('-').map(Number);
-    let expenses = this.expenseService.getExpensesByMonth(year, month - 1);
+  ngOnInit() {
+    this.loadData();
+  }
+
+  async loadData() {
+    const [year, month] = this.selectedMonth().split('-');
+    // In our model format is YYYY-MM-DD
+    const prefix = `${year}-${month}`;
+    const start = `${prefix}-01`;
+    const end = `${prefix}-31`;
+
+    let expenses = await this.expenseService.getExpenses({ limit: 1000, offset: 0, startDate: start, endDate: end });
 
     if (this.selectedCategoryId() !== 'all') {
-      const cat = this.categoryService.categories().find(c => c.id === this.selectedCategoryId());
-      if (cat) {
-        expenses = expenses.filter(e => e.category === cat.icon);
-      }
+      expenses = expenses.filter(e => e.categoryId === this.selectedCategoryId());
     }
 
-    return expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  });
+    expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    this.currentExpenses.set(expenses);
+  }
 
   readonly filteredTotal = computed(() =>
-    this.filteredExpenses().reduce((sum, e) => sum + e.amount, 0)
+    this.currentExpenses().reduce((sum, e) => sum + e.amount, 0)
   );
 
   readonly filteredAvg = computed(() => {
-    const list = this.filteredExpenses();
+    const list = this.currentExpenses();
     return list.length > 0 ? Math.round(this.filteredTotal() / list.length) : 0;
   });
 
@@ -368,13 +377,29 @@ export class ReportsComponent {
 
   onMonthChange(event: Event): void {
     this.selectedMonth.set((event.target as HTMLSelectElement).value);
+    this.loadData();
   }
 
   onCategoryChange(event: Event): void {
     this.selectedCategoryId.set((event.target as HTMLSelectElement).value);
+    this.loadData();
   }
 
   formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  }
+
+  getCategoryIcon(id: string): string {
+    const cat = this.categoryService.categories().find(c => c.id === id);
+    return cat?.icon || 'help-outline';
+  }
+
+  getCategoryName(id: string): string {
+    const cat = this.categoryService.categories().find(c => c.id === id);
+    return cat?.name || 'Unknown';
+  }
+
+  getNote(expense: Expense): string {
+    return (expense as any).notes || '';
   }
 }

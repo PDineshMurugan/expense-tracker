@@ -1,143 +1,226 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { StorageService } from './storage.service';
-import { Expense, PaymentMode } from '../models/expense.model';
+import { StorageService } from '../storage/storage.service';
+import { Expense } from '../models/expense.model';
+import { CryptoService } from '../crypto/crypto.service';
 
 @Injectable({ providedIn: 'root' })
 export class ExpenseService {
-    private _expenses = signal<Expense[]>([]);
 
-    readonly expenses = this._expenses.asReadonly();
+    // --- DASHBOARD SIGNALS ---
+    private _monthlyTotal = signal<number>(0);
+    readonly monthlyTotal = this._monthlyTotal.asReadonly();
 
-    readonly monthlyTotal = computed(() => {
-        const now = new Date();
-        const month = now.getMonth();
-        const year = now.getFullYear();
-        return this._expenses()
-            .filter(e => {
-                const d = new Date(e.date);
-                return d.getMonth() === month && d.getFullYear() === year && !e.isTransfer;
-            })
-            .reduce((sum, e) => sum + e.amount, 0);
-    });
+    private _todaySpend = signal<number>(0);
+    readonly todaySpend = this._todaySpend.asReadonly();
 
-    readonly todaySpend = computed(() => {
-        const today = new Date().toISOString().split('T')[0];
-        return this._expenses()
-            .filter(e => e.date === today && !e.isTransfer)
-            .reduce((sum, e) => sum + e.amount, 0);
-    });
+    private _topFiveTransactions = signal<Expense[]>([]);
+    readonly topFiveTransactions = this._topFiveTransactions.asReadonly();
 
-    monthlyTotalByAccount(accountId: string): number {
-        const now = new Date();
-        const month = now.getMonth();
-        const year = now.getFullYear();
-        return this._expenses()
-            .filter(e => {
-                const d = new Date(e.date);
-                return d.getMonth() === month && d.getFullYear() === year && e.accountId === accountId && !e.isTransfer;
-            })
-            .reduce((sum, e) => sum + e.amount, 0);
+    private _categoryBreakdown = signal<any[]>([]);
+    readonly categoryBreakdown = this._categoryBreakdown.asReadonly();
+
+    private _last7DaysTrend = signal<any[]>([]);
+    readonly last7DaysTrend = this._last7DaysTrend.asReadonly();
+
+    private _accountMonthlyTotals = signal<Record<string, number>>({});
+
+    constructor(
+        private storage: StorageService,
+        private crypto: CryptoService
+    ) {
+        this.loadDashboardData();
     }
 
-    readonly topFiveTransactions = computed(() => {
-        return [...this._expenses()]
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            .slice(0, 5);
-    });
+    monthlyTotalByAccount(accountId: string): number {
+        return this._accountMonthlyTotals()[accountId] || 0;
+    }
 
-    readonly last7DaysTrend = computed(() => {
-        const days: { date: string; total: number }[] = [];
+    async loadDashboardData(): Promise<void> {
+        const db = await this.storage.ready();
+
+        const now = new Date();
+        const monthPrefix = now.toISOString().substring(0, 7); // YYYY-MM
+        const todayStr = now.toISOString().split('T')[0];
+
+        // 1. Monthly Total
+        const summaryStore = db.transaction('monthlySummaries', 'readonly').objectStore('monthlySummaries');
+        const currentSummary = await summaryStore.get(monthPrefix);
+        this._monthlyTotal.set(currentSummary?.totalExpense || 0);
+
+        // 2. Fetch recent expenses for the current month
+        const expenses = await this.getExpenses({ limit: 1000, offset: 0, startDate: `${monthPrefix}-01`, endDate: `${monthPrefix}-31` });
+
+        let tSpend = 0;
+        const catMap = new Map<string, number>();
+        const accMap: Record<string, number> = {};
+
+        const trendMap = new Map<string, number>();
         for (let i = 6; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
-            const dateStr = d.toISOString().split('T')[0];
-            const total = this._expenses()
-                .filter(e => e.date === dateStr && !e.isTransfer)
-                .reduce((sum, e) => sum + e.amount, 0);
-            days.push({ date: dateStr, total });
+            trendMap.set(d.toISOString().split('T')[0], 0);
         }
-        return days;
-    });
 
-    readonly categoryBreakdown = computed(() => {
-        const now = new Date();
-        const month = now.getMonth();
-        const year = now.getFullYear();
-        const map = new Map<string, { icon: string; label: string; total: number; color?: string }>();
+        for (const e of expenses) {
+            if (e.type === 'debit') {
+                if (e.date === todayStr) tSpend += e.amount;
 
-        this._expenses()
-            .filter(e => {
-                const d = new Date(e.date);
-                return d.getMonth() === month && d.getFullYear() === year && !e.isTransfer;
-            })
-            .forEach(e => {
-                const existing = map.get(e.category) || { icon: e.category, label: e.categoryLabel, total: 0 };
-                existing.total += e.amount;
-                map.set(e.category, existing);
-            });
+                catMap.set(e.categoryId, (catMap.get(e.categoryId) || 0) + e.amount);
+                accMap[e.accountId] = (accMap[e.accountId] || 0) + e.amount;
 
-        return Array.from(map.values()).sort((a, b) => b.total - a.total);
-    });
+                if (trendMap.has(e.date)) {
+                    trendMap.set(e.date, trendMap.get(e.date)! + e.amount);
+                }
+            }
+        }
 
-    constructor(private storage: StorageService) {
-        this.loadExpenses();
+        this._todaySpend.set(tSpend);
+        this._accountMonthlyTotals.set(accMap);
+
+        // Top 5
+        this._topFiveTransactions.set(expenses.slice(0, 5));
+
+        // Category Breakdown
+        const catArr = Array.from(catMap.entries()).map(([categoryId, total]) => ({
+            categoryId,
+            label: categoryId, // Mapped in UI
+            icon: 'receipt',   // Fallback icon
+            total
+        })).sort((a, b) => b.total - a.total);
+        this._categoryBreakdown.set(catArr);
+
+        // Trend
+        const trendArr = Array.from(trendMap.entries()).map(([date, total]) => ({ date, total }));
+        this._last7DaysTrend.set(trendArr);
     }
 
-    async loadExpenses(): Promise<void> {
-        const expenses = await this.storage.getAllExpenses();
-        this._expenses.set(expenses);
+    /**
+     * Get paginated expenses with optional date range bounds.
+     * Never loads the full array into memory.
+     */
+    async getExpenses(options: {
+        limit: number;
+        offset: number;
+        startDate?: string; // YYYY-MM-DD
+        endDate?: string; // YYYY-MM-DD
+    }): Promise<Expense[]> {
+        const db = await this.storage.ready();
+
+        const tx = db.transaction('expenses', 'readonly');
+        const index = tx.store.index('byDate');
+
+        let range: IDBKeyRange | undefined;
+        if (options.startDate && options.endDate) {
+            range = IDBKeyRange.bound(options.startDate, options.endDate);
+        } else if (options.startDate) {
+            range = IDBKeyRange.lowerBound(options.startDate);
+        }
+
+        let cursor = await index.openCursor(range, 'prev');
+
+        const results: Expense[] = [];
+
+        if (options.offset > 0 && cursor) {
+            await cursor.advance(options.offset);
+        }
+
+        while (cursor && results.length < options.limit) {
+            let expense = cursor.value;
+            if (expense.encryptedPayload) {
+                try {
+                    const decrypted = await this.crypto.decrypt(expense.encryptedPayload);
+                    expense = { ...expense, ...decrypted };
+                } catch (e) {
+                    console.error('Decryption failed for expense', expense.id);
+                }
+            }
+
+            results.push(expense);
+            cursor = await cursor.continue();
+        }
+
+        return results;
     }
 
-    async addExpense(data: {
-        amount: number;
-        category: string;
-        categoryLabel: string;
-        note?: string;
-        date?: string;
-        paymentMode?: PaymentMode;
-        accountId?: string;
-        type?: 'debit' | 'credit';
-        isTransfer?: boolean;
-        source?: 'manual' | 'sms';
-        smsBody?: string;
-        smsId?: string;
-        merchant?: string;
+    /**
+     * Add expense and incrementally update dependent state (Account Balance, MonthlySummery)
+     */
+    async addExpense(expenseData: Partial<Expense> & {
+        merchantName?: string,
+        accountIdentifier?: string,
+        notes?: string,
+        rawSms?: string
     }): Promise<void> {
-        const expense: Expense = {
-            id: crypto.randomUUID(),
-            amount: data.amount,
-            category: data.category,
-            categoryLabel: data.categoryLabel,
-            note: data.note || '',
-            date: data.date || new Date().toISOString().split('T')[0],
-            paymentMode: data.paymentMode || 'UPI',
-            createdAt: new Date().toISOString(),
-            accountId: data.accountId,
-            type: data.type || 'debit',
-            isTransfer: data.isTransfer || false,
-            source: data.source || 'manual',
-            smsBody: data.smsBody,
-            smsId: data.smsId,
-            merchant: data.merchant
+        const now = new Date().toISOString();
+
+        const payloadData = {
+            merchantName: expenseData.merchantName,
+            accountIdentifier: expenseData.accountIdentifier,
+            notes: expenseData.notes,
+            rawSms: expenseData.rawSms
         };
 
-        await this.storage.putExpense(expense);
-        this._expenses.update(list => [expense, ...list]);
+        const encryptedPayload = await this.crypto.encrypt(payloadData);
+
+        const expense: Expense = {
+            id: crypto.randomUUID(),
+            amount: expenseData.amount || 0,
+            date: expenseData.date || now.split('T')[0],
+            type: expenseData.type || 'debit',
+            categoryId: expenseData.categoryId || 'unknown',
+            accountId: expenseData.accountId || 'unknown',
+            source: expenseData.source || 'manual',
+            parserVersion: expenseData.parserVersion || 1,
+            encryptedPayload,
+            createdAt: now,
+            updatedAt: now
+        };
+
+        const db = await this.storage.ready();
+        const tx = db.transaction(['expenses', 'accounts', 'monthlySummaries'], 'readwrite');
+
+        try {
+            await tx.objectStore('expenses').put(expense);
+
+            const accountStore = tx.objectStore('accounts');
+            const account = await accountStore.get(expense.accountId);
+            if (account) {
+                if (expense.type === 'debit') {
+                    account.balance -= expense.amount;
+                } else {
+                    account.balance += expense.amount;
+                }
+                account.updatedAt = now;
+                await accountStore.put(account);
+            }
+
+            const monthPrefix = expense.date.substring(0, 7);
+            const summaryStore = tx.objectStore('monthlySummaries');
+            let summary = await summaryStore.get(monthPrefix);
+
+            if (!summary) {
+                summary = { month: monthPrefix, totalExpense: 0, totalIncome: 0 };
+            }
+
+            if (expense.type === 'debit') {
+                summary.totalExpense += expense.amount;
+            } else {
+                summary.totalIncome += expense.amount;
+            }
+            await summaryStore.put(summary);
+
+            await tx.done;
+            this.loadDashboardData();
+        } catch (error) {
+            console.error('Transaction Failed, rolling back', error);
+            tx.abort();
+            throw error;
+        }
     }
 
     async deleteExpense(id: string): Promise<void> {
-        await this.storage.deleteExpense(id);
-        this._expenses.update(list => list.filter(e => e.id !== id));
-    }
-
-    getExpensesByMonth(year: number, month: number): Expense[] {
-        return this._expenses().filter(e => {
-            const d = new Date(e.date);
-            return d.getFullYear() === year && d.getMonth() === month;
-        });
-    }
-
-    getExpensesByCategory(category: string): Expense[] {
-        return this._expenses().filter(e => e.category === category);
+        const db = await this.storage.ready();
+        await db.delete('expenses', id);
+        this.loadDashboardData();
     }
 }

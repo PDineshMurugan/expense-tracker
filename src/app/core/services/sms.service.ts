@@ -190,6 +190,96 @@ export class SmsService {
         localStorage.setItem('persisted-sms-expenses', JSON.stringify(updated));
     }
 
+    // --- Auto-Detected Dashboard Aggregations ---
+
+    // 1. Get total valid detected messages (excluding transfers if needed, but requirements say include all)
+    getValidSmsCount(): number {
+        return this._smsExpenses().length;
+    }
+
+    // 2. Group by Sender (Bank/Wallet)
+    getSenderSummary() {
+        const expenses = this._smsExpenses();
+        const map = new Map<string, { total: number, count: number }>();
+
+        for (const exp of expenses) {
+            const sender = exp.sender || 'Unknown Bank';
+            const existing = map.get(sender) || { total: 0, count: 0 };
+            existing.total += exp.amount;
+            existing.count += 1;
+            map.set(sender, existing);
+        }
+
+        return Array.from(map.entries())
+            .map(([name, data]) => ({ name, total: data.total, count: data.count }))
+            .sort((a, b) => b.total - a.total);
+    }
+
+    // 3. Top Merchants (Overall or By Sender)
+    getTopMerchants(senderFilter?: string) {
+        const expenses = this._smsExpenses();
+        const map = new Map<string, { total: number, count: number, originalName: string }>();
+
+        for (const exp of expenses) {
+            if (senderFilter && exp.sender !== senderFilter) continue;
+
+            const merchant = exp.merchantName || 'Unknown Merchant';
+            // Case-insensitive grouping
+            const key = merchant.toLowerCase();
+
+            const existing = map.get(key) || { total: 0, count: 0, originalName: merchant };
+            existing.total += exp.amount;
+            existing.count += 1;
+            map.set(key, existing);
+        }
+
+        return Array.from(map.values())
+            .sort((a, b) => b.total - a.total);
+    }
+
+    // 4. Merchant Transactions Date-Grouped
+    getMerchantTransactions(merchantName: string) {
+        const expenses = this._smsExpenses().filter(
+            e => (e.merchantName || 'Unknown Merchant').toLowerCase() === merchantName.toLowerCase()
+        );
+
+        // Sort latest first
+        expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        return expenses;
+    }
+
+    // --- Bulk & Individual Editing ---
+
+    updateTransactionCategory(id: string, userCategory: string, userCategoryLabel: string, isTransfer: boolean) {
+        const expenses = [...this._smsExpenses()];
+        const idx = expenses.findIndex(e => e.id === id);
+        if (idx !== -1) {
+            expenses[idx] = { ...expenses[idx], userCategory, userCategoryLabel, isTransfer };
+            this._smsExpenses.set(expenses);
+            localStorage.setItem('persisted-sms-expenses', JSON.stringify(expenses));
+        }
+    }
+
+    updateBulkCategory(merchantName: string, userCategory: string, userCategoryLabel: string, isTransfer: boolean) {
+        const expenses = [...this._smsExpenses()];
+        const target = merchantName.toLowerCase();
+        let updated = false;
+
+        for (let i = 0; i < expenses.length; i++) {
+            const m = (expenses[i].merchantName || 'Unknown Merchant').toLowerCase();
+            if (m === target) {
+                expenses[i] = { ...expenses[i], userCategory, userCategoryLabel, isTransfer };
+                updated = true;
+            }
+        }
+
+        if (updated) {
+            this._smsExpenses.set(expenses);
+            localStorage.setItem('persisted-sms-expenses', JSON.stringify(expenses));
+        }
+    }
+
     private async readSmsMessages(): Promise<{ body: string; date?: Date; address?: string }[]> {
         return await this.readNativeSms();
     }

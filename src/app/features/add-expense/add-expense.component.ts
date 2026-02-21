@@ -92,11 +92,11 @@ import {
             @for (cat of categoryService.categories(); track cat.id) {
               <button
                 class="category-pill"
-                [class.category-pill--selected]="selectedCategory() === cat.icon"
-                (click)="selectCategory(cat.icon, cat.label)"
+                [class.category-pill--selected]="selectedCategory() === cat.id"
+                (click)="selectCategory(cat.id, cat.name)"
                 [attr.id]="'cat-' + cat.id">
                 <ion-icon [name]="cat.icon" class="category-pill__icon"></ion-icon>
-                <span class="category-pill__name">{{ cat.label }}</span>
+                <span class="category-pill__name">{{ cat.name }}</span>
               </button>
             }
           </div>
@@ -530,7 +530,7 @@ export class AddExpenseComponent {
 
       this.isTransfer.set(sms.isTransfer || false);
       if (sms.isTransfer) {
-        this.selectedCategory.set('swap-horizontal');
+        this.selectedCategory.set('transfer');
         this.selectedCategoryLabel.set('Transfer');
       }
       this.pendingSmsId = sms.id;
@@ -553,17 +553,17 @@ export class AddExpenseComponent {
     return this.amount() > 0 && this.selectedCategory() !== '';
   }
 
-  selectCategory(icon: string, label: string): void {
+  selectCategory(id: string, name: string): void {
     if (this.isTransfer()) return; // Don't change category manually if transfer is forced
-    this.selectedCategory.set(icon);
-    this.selectedCategoryLabel.set(label);
+    this.selectedCategory.set(id);
+    this.selectedCategoryLabel.set(name);
   }
 
   toggleTransfer(event: Event): void {
     const checked = (event.target as HTMLInputElement).checked;
     this.isTransfer.set(checked);
     if (checked) {
-      this.selectedCategory.set('swap-horizontal');
+      this.selectedCategory.set('transfer');
       this.selectedCategoryLabel.set('Transfer');
     } else {
       this.selectedCategory.set('');
@@ -584,7 +584,8 @@ export class AddExpenseComponent {
     switch (mode) {
       case 'UPI': return 'phone-portrait-outline';
       case 'Cash': return 'cash-outline';
-      case 'Card': return 'card-outline';
+      case 'Credit Card':
+      case 'Debit Card': return 'card-outline';
       default: return 'wallet-outline';
     }
   }
@@ -594,12 +595,10 @@ export class AddExpenseComponent {
 
     await this.expenseService.addExpense({
       amount: this.amount(),
-      category: this.selectedCategory(),
-      categoryLabel: this.selectedCategoryLabel(),
-      note: this.note(),
-      paymentMode: this.selectedPaymentMode(),
+      categoryId: this.selectedCategory(),
       accountId: this.selectedAccountId() || undefined,
-      isTransfer: this.isTransfer(),
+      type: 'debit', // Transfsers modelled as debits for simplicity or user should manually add credit
+      notes: (this.isTransfer() ? '[Transfer] ' : '') + `[${this.selectedPaymentMode()}] ${this.note()}`,
     });
 
     if (this.pendingSmsId) {

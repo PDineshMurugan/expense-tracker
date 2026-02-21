@@ -87,12 +87,15 @@ import {
         <!-- SMS & Notification Auto-Detected -->
         @if (recentTransactions().length > 0) {
           <div class="section animate-fade-in-up">
-            <div class="section-header">
-              <h3 class="section-title">
+            <div class="recent-header" style="cursor: pointer" [routerLink]="['/tabs/auto-transactions']">
+              <h3 class="recent-title">
                 <ion-icon name="phone-portrait-outline" style="vertical-align: middle; margin-right: 4px;"></ion-icon>
-                Auto-Detected
+                Auto-Detected Transactions
               </h3>
-              <span class="section-badge">{{ recentTransactions().length }}</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="section-badge">{{ smsService.getValidSmsCount() }}</span>
+                <ion-icon name="arrow-forward-outline" style="color: var(--color-text-secondary)"></ion-icon>
+              </div>
             </div>
             <div class="sms-scroll">
               @for (sms of recentTransactions().slice(0, 10); track sms.id) {
@@ -214,23 +217,23 @@ import {
                 <div class="glass-card transaction-card">
                   <div class="transaction-row">
                     <div class="transaction-icon-wrap">
-                      <ion-icon [name]="expense.category" class="transaction-icon"></ion-icon>
+                      <ion-icon [name]="getCategoryIcon(expense.categoryId)" class="transaction-icon"></ion-icon>
                     </div>
                     <div class="transaction-info">
                       <div style="display: flex; align-items: center; gap: 6px;">
-                        <span class="transaction-label">{{ expense.categoryLabel }}</span>
-                        @if (expense.isTransfer) {
+                        <span class="transaction-label">{{ getCategoryName(expense.categoryId) }}</span>
+                        @if (expense.categoryId === 'transfer') {
                           <span class="transfer-tag">Transfer</span>
                         }
                       </div>
-                      <span class="transaction-date">{{ formatRelative(expense.date) }} · {{ expense.paymentMode }}</span>
+                      <span class="transaction-date">{{ formatRelative(expense.date) }}</span>
                     </div>
-                    <span class="transaction-amount" [class.transaction-amount--transfer]="expense.isTransfer">
-                      {{ expense.isTransfer ? '' : '-' }}{{ expense.amount | currency }}
+                    <span class="transaction-amount" [class.transaction-amount--transfer]="expense.categoryId === 'transfer'">
+                      {{ expense.categoryId === 'transfer' ? '' : '-' }}{{ expense.amount | currency }}
                     </span>
                   </div>
-                  @if (expense.note) {
-                    <p class="transaction-note">{{ expense.note }}</p>
+                  @if (getNote(expense)) {
+                    <p class="transaction-note">{{ getNote(expense) }}</p>
                   }
                 </div>
               }
@@ -948,5 +951,19 @@ export class DashboardComponent {
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
     return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  }
+
+  getCategoryIcon(id: string): string {
+    const cat = this.categoryService.categories().find(c => c.id === id);
+    return cat?.icon || 'help-outline';
+  }
+
+  getCategoryName(id: string): string {
+    const cat = this.categoryService.categories().find(c => c.id === id);
+    return cat?.name || 'Unknown';
+  }
+
+  getNote(expense: any): string {
+    return expense.notes || '';
   }
 }

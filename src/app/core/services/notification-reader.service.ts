@@ -3,6 +3,8 @@ import { Platform } from '@ionic/angular/standalone';
 import { parseSMS, ParsedSMS } from '../utils/sms-parser.util';
 import { NotificationService } from './notification.service';
 import { registerPlugin } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { Router } from '@angular/router';
 
 interface NotificationSettingsPlugin {
     open(): Promise<void>;
@@ -14,6 +16,7 @@ const NotificationSettings = registerPlugin<NotificationSettingsPlugin>('Notific
 export class NotificationReaderService {
     private platform = inject(Platform);
     private notificationService = inject(NotificationService);
+    private router = inject(Router);
 
     private _isEnabled = signal<boolean>(false);
     private _detectedTransactions = signal<ParsedSMS[]>([]);
@@ -24,6 +27,7 @@ export class NotificationReaderService {
     constructor() {
         this.loadState();
         this.initListener();
+        this.initNotificationActions();
     }
 
     private loadState() {
@@ -100,6 +104,43 @@ export class NotificationReaderService {
         window.addEventListener('notificationReceived', this.handleNotification);
     }
 
+    private initNotificationActions() {
+        if (!this.platform.is('capacitor')) return;
+
+        LocalNotifications.registerActionTypes({
+            types: [
+                {
+                    id: 'TXN_ACTION',
+                    actions: [
+                        {
+                            id: 'view',
+                            title: 'View SMS',
+                        },
+                        {
+                            id: 'add',
+                            title: 'Add Expense',
+                        }
+                    ]
+                }
+            ]
+        });
+
+        LocalNotifications.addListener('localNotificationActionPerformed', (notificationAction) => {
+            if (notificationAction.actionId === 'add') {
+                const data = notificationAction.notification.extra;
+                if (data && data.amount) {
+                    this.router.navigate(['/tabs/add-expense'], {
+                        queryParams: {
+                            amount: data.amount,
+                            note: data.merchant || 'SMS Transaction',
+                            prefilled: true
+                        }
+                    });
+                }
+            }
+        });
+    }
+
     private stopListening() {
         window.removeEventListener('notificationReceived', this.handleNotification);
     }
@@ -148,7 +189,27 @@ export class NotificationReaderService {
                 localStorage.setItem('persisted-notif-transactions', JSON.stringify(newList));
                 return newList;
             });
-            this.notificationService.success(`Transaction detected: ${parsed.amount}`);
+
+            // Push Real Local Notification
+            if (this.platform.is('capacitor')) {
+                LocalNotifications.schedule({
+                    notifications: [
+                        {
+                            title: 'Transaction Detected',
+                            body: `Spent ₹${parsed.amount} at ${parsed.merchantName || 'Merchant'}`,
+                            id: new Date().getTime(),
+                            schedule: { at: new Date(Date.now() + 1000) },
+                            actionTypeId: 'TXN_ACTION',
+                            extra: {
+                                amount: parsed.amount,
+                                merchant: parsed.merchantName
+                            }
+                        }
+                    ]
+                });
+            } else {
+                this.notificationService.success(`Transaction detected: ${parsed.amount}`);
+            }
         }
     }
 

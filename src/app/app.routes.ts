@@ -30,6 +30,18 @@ export const appRoutes: Route[] = [
                 loadComponent: () => import('./features/accounts/accounts.component').then(m => m.AccountsComponent),
             },
             {
+                path: 'auto-transactions',
+                loadComponent: () => import('./features/auto-transactions/auto-transactions.component').then(m => m.AutoTransactionsComponent),
+            },
+            {
+                path: 'auto-transactions/sender/:id',
+                loadComponent: () => import('./features/auto-transactions/sender-details.component').then(m => m.SenderDetailsComponent),
+            },
+            {
+                path: 'auto-transactions/merchant/:id',
+                loadComponent: () => import('./features/auto-transactions/merchant-details.component').then(m => m.MerchantDetailsComponent),
+            },
+            {
                 path: '',
                 redirectTo: 'dashboard',
                 pathMatch: 'full',
