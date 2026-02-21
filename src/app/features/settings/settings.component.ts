@@ -1,24 +1,32 @@
 import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import {
-  IonContent, IonHeader, IonToolbar, IonTitle
+  IonContent, IonHeader, IonToolbar, IonTitle, IonIcon
 } from '@ionic/angular/standalone';
 import { FormsModule } from '@angular/forms';
 import { BudgetService } from '../../core/services/budget.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { StorageService } from '../../core/services/storage.service';
 import { SmsService } from '../../core/services/sms.service';
+import { NotificationReaderService } from '../../core/services/notification-reader.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { CurrencyPipe } from '../../shared/pipes/currency.pipe';
+import { addIcons } from 'ionicons';
+import {
+  cash, phonePortrait, notifications, colorPalette, moon,
+  briefcase, cloudDownload, informationCircle, search, arrowForward,
+  wallet, settings, card
+} from 'ionicons/icons';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule, FormsModule,
+    CommonModule, FormsModule, RouterModule,
     IonContent, IonHeader, IonToolbar, IonTitle,
-    CurrencyPipe
+    CurrencyPipe, IonIcon
   ],
   template: `
     <ion-header>
@@ -35,7 +43,7 @@ import { CurrencyPipe } from '../../shared/pipes/currency.pipe';
         <!-- Budget -->
         <div class="glass-card settings-section">
           <div class="section-header">
-            <span class="section-icon">💰</span>
+            <ion-icon name="cash" class="section-icon-native"></ion-icon>
             <h3 class="section-title">Monthly Budget</h3>
           </div>
           <div class="budget-input-row">
@@ -64,7 +72,7 @@ import { CurrencyPipe } from '../../shared/pipes/currency.pipe';
         <!-- SMS Auto-Read -->
         <div class="glass-card settings-section">
           <div class="section-header">
-            <span class="section-icon">📱</span>
+            <ion-icon name="phone-portrait" class="section-icon-native"></ion-icon>
             <h3 class="section-title">SMS Auto-Read</h3>
           </div>
           <p class="section-desc">Automatically detect expenses from bank SMS messages</p>
@@ -79,7 +87,8 @@ import { CurrencyPipe } from '../../shared/pipes/currency.pipe';
             <button
               class="toggle-switch"
               [class.toggle-switch--on]="smsService.smsEnabled()"
-              (click)="toggleSms()">
+              (click)="toggleSms()"
+              [disabled]="smsService.isScanning()">
               <span class="toggle-switch__knob"></span>
             </button>
           </div>
@@ -87,31 +96,80 @@ import { CurrencyPipe } from '../../shared/pipes/currency.pipe';
           @if (smsService.smsEnabled()) {
             <button class="scan-btn" (click)="scanSms()" [disabled]="smsService.isScanning()" id="scan-sms-btn">
               @if (smsService.isScanning()) {
-                <span class="scan-btn__spinner"></span>
-                <span>Scanning...</span>
+                  <span class="scan-btn__spinner"></span>
+                  <span>Scanning...</span>
               } @else {
-                <span class="scan-btn__icon">🔍</span>
+                <ion-icon name="search" class="scan-btn__icon"></ion-icon>
                 <span>Scan SMS Now</span>
               }
             </button>
 
-            @if (smsService.lastScanTime()) {
-              <p class="scan-status">
-                Last scan: {{ formatScanTime(smsService.lastScanTime()!) }}
-                · Found {{ smsService.smsExpenses().length }} transactions
-              </p>
-            }
+              @if (smsService.isScanning()) {
+                <div class="scan-progress">
+                  <div class="scan-progress__meta">
+                    Scanned {{ smsService.messagesScanned() }} of {{ smsService.totalMessagesToScan() }} messages
+                  </div>
+                  <div class="scan-progress__bar">
+                    <div class="scan-progress__fill" [style.width.%]="smsService.totalMessagesToScan() ? (smsService.messagesScanned() / smsService.totalMessagesToScan()) * 100 : 0"></div>
+                  </div>
+                </div>
+              } @else if (smsService.lastScanTime()) {
+                <p class="scan-status">
+                  Last scan: {{ formatScanTime(smsService.lastScanTime()!) }}
+                  · Found {{ smsService.smsExpenses().length }} transactions
+                </p>
+              }
           }
+        </div>
+
+        <!-- Notification Reading -->
+        <div class="glass-card settings-section animate-fade-in-up" style="animation-delay: 100ms">
+          <div class="section-header">
+            <ion-icon name="notifications" class="section-icon-native"></ion-icon>
+            <h3 class="section-title">Notification Reading</h3>
+          </div>
+          
+          <div class="toggle-row" id="notif-toggle">
+            <div class="toggle-info">
+              <span class="toggle-label">Read Notifications</span>
+              @if (notificationReaderService.isEnabled()) {
+                <span class="status-badge status-badge--active">Active</span>
+              }
+            </div>
+            <button
+              class="toggle-switch"
+              [class.toggle-switch--on]="notificationReaderService.isEnabled()"
+              (click)="notificationReaderService.toggleEnabled()">
+              <span class="toggle-switch__knob"></span>
+            </button>
+          </div>
+          <p class="section-desc">Detect transactions from notification apps (GPay, Paytm, etc.)</p>
+        </div>
+
+        <!-- Accounts Management -->
+        <div class="glass-card settings-section">
+          <div class="section-header">
+            <ion-icon name="card" class="section-icon-native"></ion-icon>
+            <h3 class="section-title">Accounts & Cards</h3>
+          </div>
+          <button class="action-btn" routerLink="/tabs/accounts">
+            <ion-icon name="wallet" class="action-btn__icon"></ion-icon>
+            <div class="action-btn__text">
+              <span class="action-btn__label">Manage Accounts</span>
+              <span class="action-btn__desc">Add Banks, Credit Cards, and Wallets</span>
+            </div>
+            <ion-icon name="arrow-forward" class="action-btn__arrow"></ion-icon>
+          </button>
         </div>
 
         <!-- Appearance -->
         <div class="glass-card settings-section">
           <div class="section-header">
-            <span class="section-icon">🎨</span>
+            <ion-icon name="color-palette" class="section-icon-native"></ion-icon>
             <h3 class="section-title">Appearance</h3>
           </div>
           <div class="toggle-row" id="dark-mode-toggle">
-            <span class="toggle-label">🌙 Dark Mode</span>
+            <span class="toggle-label"><ion-icon name="moon" style="vertical-align: middle; margin-right: 8px;"></ion-icon> Dark Mode</span>
             <button
               class="toggle-switch"
               [class.toggle-switch--on]="themeService.isDark()"
@@ -124,23 +182,23 @@ import { CurrencyPipe } from '../../shared/pipes/currency.pipe';
         <!-- Data -->
         <div class="glass-card settings-section">
           <div class="section-header">
-            <span class="section-icon">📦</span>
+            <ion-icon name="briefcase" class="section-icon-native"></ion-icon>
             <h3 class="section-title">Data</h3>
           </div>
           <button class="action-btn" (click)="exportData()" id="export-btn">
-            <span class="action-btn__icon">📤</span>
+            <ion-icon name="cloud-download" class="action-btn__icon"></ion-icon>
             <div class="action-btn__text">
               <span class="action-btn__label">Export Data (JSON)</span>
               <span class="action-btn__desc">Download a backup of all your expenses</span>
             </div>
-            <span class="action-btn__arrow">→</span>
+            <ion-icon name="arrow-forward" class="action-btn__arrow"></ion-icon>
           </button>
         </div>
 
         <!-- About -->
         <div class="glass-card settings-section">
           <div class="section-header">
-            <span class="section-icon">ℹ️</span>
+            <ion-icon name="information-circle" class="section-icon-native"></ion-icon>
             <h3 class="section-title">About</h3>
           </div>
           <div class="about-content">
@@ -175,8 +233,9 @@ import { CurrencyPipe } from '../../shared/pipes/currency.pipe';
       margin-bottom: var(--spacing-md);
     }
 
-    .section-icon {
-      font-size: 1.25rem;
+    .section-icon-native {
+      font-size: 1.5rem;
+      color: var(--color-primary);
     }
 
     .section-title {
@@ -296,6 +355,13 @@ import { CurrencyPipe } from '../../shared/pipes/currency.pipe';
       color: var(--color-accent);
     }
 
+    .setting-icon--sms {
+      background: rgba(var(--color-accent-rgb), 0.12);
+      color: var(--color-accent);
+    }
+    
+
+
     .toggle-switch {
       width: 52px;
       height: 28px;
@@ -383,6 +449,32 @@ import { CurrencyPipe } from '../../shared/pipes/currency.pipe';
       text-align: center;
     }
 
+    .scan-progress {
+      margin-top: var(--spacing-sm);
+    }
+
+    .scan-progress__meta {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-secondary);
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .scan-progress__bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(var(--color-surface-alt-rgb), 0.35);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .scan-progress__fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--color-accent), var(--color-primary));
+      width: 0%;
+      transition: width 220ms linear;
+    }
+
     /* ── Action Button ── */
     .action-btn {
       width: 100%;
@@ -458,7 +550,6 @@ import { CurrencyPipe } from '../../shared/pipes/currency.pipe';
     .about-sub {
       font-size: var(--font-size-xs);
       color: var(--color-text-secondary);
-      margin-top: var(--spacing-xs);
     }
   `]
 })
@@ -466,12 +557,19 @@ export class SettingsComponent {
   protected readonly budgetService = inject(BudgetService);
   protected readonly themeService = inject(ThemeService);
   protected readonly smsService = inject(SmsService);
+  protected readonly notificationReaderService = inject(NotificationReaderService);
   private readonly notificationService = inject(NotificationService);
   private readonly storageService = inject(StorageService);
 
   readonly budgetInput = signal<number>(0);
 
   constructor() {
+    addIcons({
+      cash, phonePortrait, notifications, colorPalette, moon,
+      briefcase, cloudDownload, informationCircle, search, arrowForward,
+      wallet, settings, card
+    });
+
     const currentBudget = this.budgetService.monthlyBudget();
     if (currentBudget > 0) {
       this.budgetInput.set(currentBudget);
@@ -488,8 +586,8 @@ export class SettingsComponent {
     this.notificationService.success('Budget saved successfully!');
   }
 
-  toggleSms(): void {
-    this.smsService.toggleSmsEnabled();
+  async toggleSms(): Promise<void> {
+    await this.smsService.toggleSmsEnabled();
   }
 
   async scanSms(): Promise<void> {

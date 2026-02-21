@@ -3,6 +3,7 @@ import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { Expense } from '../models/expense.model';
 import { Category } from '../models/category.model';
 import { AppSettings } from '../models/settings.model';
+import { Account } from '../models/account.model';
 
 interface ExpenseTrackerDB extends DBSchema {
     expenses: {
@@ -21,10 +22,14 @@ interface ExpenseTrackerDB extends DBSchema {
         key: string;
         value: unknown;
     };
+    accounts: {
+        key: string;
+        value: Account;
+    };
 }
 
 const DB_NAME = 'expense-tracker-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 /**
  * Storage Service
@@ -45,6 +50,7 @@ export class StorageService {
     constructor() {
         this.dbReady = this.initDB();
         this.detectCapacitorStorage();
+        this.syncWithBackup(); // Attempt to restore from secondary storage if IDB is empty
     }
 
     /**
@@ -53,7 +59,8 @@ export class StorageService {
     private detectCapacitorStorage(): void {
         try {
             const cap = (window as any)?.Capacitor;
-            this.useCapacitorStorage = !!cap?.Plugins?.Storage;
+            // Support both old 'Storage' and new 'Preferences' plugins
+            this.useCapacitorStorage = !!(cap?.Plugins?.Storage || cap?.Plugins?.Preferences);
         } catch {
             this.useCapacitorStorage = false;
         }
@@ -78,6 +85,11 @@ export class StorageService {
                     // Settings store
                     if (!db.objectStoreNames.contains('settings')) {
                         db.createObjectStore('settings');
+                    }
+
+                    // Accounts store (v2)
+                    if (!db.objectStoreNames.contains('accounts')) {
+                        db.createObjectStore('accounts', { keyPath: 'id' });
                     }
                 },
             });
@@ -107,10 +119,10 @@ export class StorageService {
     async putExpense(expense: Expense): Promise<void> {
         await this.ready();
         await this.db.put('expenses', expense);
-        
+
         // Also backup to Capacitor Storage if available
         if (this.useCapacitorStorage) {
-            this.backupExpenseToCapacitor(expense).catch(err => 
+            this.backupExpenseToCapacitor(expense).catch(err =>
                 console.warn('Capacitor backup failed:', err)
             );
         }
@@ -119,7 +131,7 @@ export class StorageService {
     async deleteExpense(id: string): Promise<void> {
         await this.ready();
         await this.db.delete('expenses', id);
-        
+
         if (this.useCapacitorStorage) {
             this.removeExpenseFromCapacitor(id).catch(err =>
                 console.warn('Capacitor backup deletion failed:', err)
@@ -142,6 +154,23 @@ export class StorageService {
     async deleteCategory(id: string): Promise<void> {
         await this.ready();
         await this.db.delete('categories', id);
+    }
+
+    // ── Accounts ──
+
+    async getAllAccounts(): Promise<Account[]> {
+        await this.ready();
+        return this.db.getAll('accounts');
+    }
+
+    async putAccount(account: Account): Promise<void> {
+        await this.ready();
+        await this.db.put('accounts', account);
+    }
+
+    async deleteAccount(id: string): Promise<void> {
+        await this.ready();
+        await this.db.delete('accounts', id);
     }
 
     // ── Settings ──
@@ -176,7 +205,7 @@ export class StorageService {
 
     async importAll(data: { expenses: Expense[]; categories: Category[]; settings: Record<string, unknown> }): Promise<void> {
         await this.ready();
-        
+
         // Clear existing data
         const tx = this.db.transaction(['expenses', 'categories', 'settings'], 'readwrite');
         await tx.objectStore('expenses').clear();
@@ -199,15 +228,46 @@ export class StorageService {
         }
     }
 
+    private async syncWithBackup(): Promise<void> {
+        if (!this.useCapacitorStorage) return;
+        await this.ready();
+
+        try {
+            const expenses = await this.db.getAll('expenses');
+            if (expenses.length > 0) return; // DB already has data
+
+            console.log('[StorageService] IDB is empty, checking Capacitor Storage for backup...');
+            const cap = (window as any)?.Capacitor?.Plugins;
+            const storage = cap?.Storage || cap?.Preferences;
+
+            if (!storage) return;
+
+            const { keys } = await storage.keys();
+            for (const key of keys) {
+                if (key.startsWith('expense_')) {
+                    const { value } = await storage.get({ key });
+                    if (value) {
+                        const expense = JSON.parse(value);
+                        await this.db.put('expenses', expense);
+                    }
+                }
+            }
+            console.log('[StorageService] Backup sync complete.');
+        } catch (error) {
+            console.warn('[StorageService] Sync with backup failed:', error);
+        }
+    }
+
     // ── Capacitor Storage Backup (Mobile) ──
 
     private async backupExpenseToCapacitor(expense: Expense): Promise<void> {
         if (!this.useCapacitorStorage) return;
 
         try {
-            const cap = (window as any)?.Capacitor?.Plugins?.Storage;
-            if (cap?.setItem) {
-                await cap.setItem({
+            const cap = (window as any)?.Capacitor?.Plugins;
+            const storage = cap?.Storage || cap?.Preferences;
+            if (storage) {
+                await storage.set({
                     key: `expense_${expense.id}`,
                     value: JSON.stringify(expense)
                 });
@@ -221,9 +281,10 @@ export class StorageService {
         if (!this.useCapacitorStorage) return;
 
         try {
-            const cap = (window as any)?.Capacitor?.Plugins?.Storage;
-            if (cap?.removeItem) {
-                await cap.removeItem({ key: `expense_${id}` });
+            const cap = (window as any)?.Capacitor?.Plugins;
+            const storage = cap?.Storage || cap?.Preferences;
+            if (storage) {
+                await storage.remove({ key: `expense_${id}` });
             }
         } catch (error) {
             console.warn('Failed to remove expense from Capacitor Storage:', error);

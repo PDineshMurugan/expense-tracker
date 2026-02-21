@@ -15,7 +15,7 @@ export class ExpenseService {
         return this._expenses()
             .filter(e => {
                 const d = new Date(e.date);
-                return d.getMonth() === month && d.getFullYear() === year;
+                return d.getMonth() === month && d.getFullYear() === year && !e.isTransfer;
             })
             .reduce((sum, e) => sum + e.amount, 0);
     });
@@ -23,9 +23,21 @@ export class ExpenseService {
     readonly todaySpend = computed(() => {
         const today = new Date().toISOString().split('T')[0];
         return this._expenses()
-            .filter(e => e.date === today)
+            .filter(e => e.date === today && !e.isTransfer)
             .reduce((sum, e) => sum + e.amount, 0);
     });
+
+    monthlyTotalByAccount(accountId: string): number {
+        const now = new Date();
+        const month = now.getMonth();
+        const year = now.getFullYear();
+        return this._expenses()
+            .filter(e => {
+                const d = new Date(e.date);
+                return d.getMonth() === month && d.getFullYear() === year && e.accountId === accountId && !e.isTransfer;
+            })
+            .reduce((sum, e) => sum + e.amount, 0);
+    }
 
     readonly topFiveTransactions = computed(() => {
         return [...this._expenses()]
@@ -40,7 +52,7 @@ export class ExpenseService {
             d.setDate(d.getDate() - i);
             const dateStr = d.toISOString().split('T')[0];
             const total = this._expenses()
-                .filter(e => e.date === dateStr)
+                .filter(e => e.date === dateStr && !e.isTransfer)
                 .reduce((sum, e) => sum + e.amount, 0);
             days.push({ date: dateStr, total });
         }
@@ -51,15 +63,15 @@ export class ExpenseService {
         const now = new Date();
         const month = now.getMonth();
         const year = now.getFullYear();
-        const map = new Map<string, { emoji: string; label: string; total: number; color?: string }>();
+        const map = new Map<string, { icon: string; label: string; total: number; color?: string }>();
 
         this._expenses()
             .filter(e => {
                 const d = new Date(e.date);
-                return d.getMonth() === month && d.getFullYear() === year;
+                return d.getMonth() === month && d.getFullYear() === year && !e.isTransfer;
             })
             .forEach(e => {
-                const existing = map.get(e.category) || { emoji: e.category, label: e.categoryLabel, total: 0 };
+                const existing = map.get(e.category) || { icon: e.category, label: e.categoryLabel, total: 0 };
                 existing.total += e.amount;
                 map.set(e.category, existing);
             });
@@ -83,6 +95,13 @@ export class ExpenseService {
         note?: string;
         date?: string;
         paymentMode?: PaymentMode;
+        accountId?: string;
+        type?: 'debit' | 'credit';
+        isTransfer?: boolean;
+        source?: 'manual' | 'sms';
+        smsBody?: string;
+        smsId?: string;
+        merchant?: string;
     }): Promise<void> {
         const expense: Expense = {
             id: crypto.randomUUID(),
@@ -93,6 +112,13 @@ export class ExpenseService {
             date: data.date || new Date().toISOString().split('T')[0],
             paymentMode: data.paymentMode || 'UPI',
             createdAt: new Date().toISOString(),
+            accountId: data.accountId,
+            type: data.type || 'debit',
+            isTransfer: data.isTransfer || false,
+            source: data.source || 'manual',
+            smsBody: data.smsBody,
+            smsId: data.smsId,
+            merchant: data.merchant
         };
 
         await this.storage.putExpense(expense);

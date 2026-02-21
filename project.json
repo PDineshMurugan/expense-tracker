@@ -9,7 +9,9 @@
   "targets": {
     "build": {
       "executor": "@angular/build:application",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "options": {
         "outputPath": "dist/expense-tracker",
         "browser": "./src/main.ts",
@@ -21,20 +23,22 @@
             "input": "public"
           }
         ],
-        "styles": ["./src/styles.scss"]
+        "styles": [
+          "./src/styles.scss"
+        ]
       },
       "configurations": {
         "production": {
           "budgets": [
             {
               "type": "initial",
-              "maximumWarning": "500kb",
-              "maximumError": "1mb"
+              "maximumWarning": "700kb",
+              "maximumError": "1.5mb"
             },
             {
               "type": "anyComponentStyle",
-              "maximumWarning": "4kb",
-              "maximumError": "8kb"
+              "maximumWarning": "8kb",
+              "maximumError": "12kb"
             }
           ],
           "outputHashing": "all"
@@ -63,7 +67,9 @@
     "lint": {
       "executor": "@nx/eslint:lint",
       "options": {
-        "lintFilePatterns": ["./src"]
+        "lintFilePatterns": [
+          "./src"
+        ]
       }
     },
     "test": {

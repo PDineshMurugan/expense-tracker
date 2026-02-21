@@ -91,7 +91,7 @@ import { homeOutline, home, addCircleOutline, addCircle, barChartOutline, barCha
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-top: -20px;
+      margin-top: -12px;
       box-shadow: 0 4px 16px rgba(var(--color-primary-rgb), 0.35);
       transition: transform var(--transition-spring), box-shadow var(--transition-base);
     }

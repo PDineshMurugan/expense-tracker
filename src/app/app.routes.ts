@@ -26,6 +26,10 @@ export const appRoutes: Route[] = [
                 loadComponent: () => import('./features/categories/categories.component').then(m => m.CategoriesComponent),
             },
             {
+                path: 'accounts',
+                loadComponent: () => import('./features/accounts/accounts.component').then(m => m.AccountsComponent),
+            },
+            {
                 path: '',
                 redirectTo: 'dashboard',
                 pathMatch: 'full',

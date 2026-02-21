@@ -1,11 +1,16 @@
 import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
-  IonContent, IonHeader, IonToolbar, IonTitle
+  IonContent, IonHeader, IonToolbar, IonTitle, IonIcon
 } from '@ionic/angular/standalone';
 import { FormsModule } from '@angular/forms';
 import { CategoryService } from '../../core/services/category.service';
 import { Category } from '../../core/models/category.model';
+import { addIcons } from 'ionicons';
+import {
+  pricetag, add, helpOutline, trashOutline, close,
+  fastFood, car, cart, film, medkit, receipt, home, school, airplane, gift
+} from 'ionicons/icons';
 
 @Component({
   selector: 'app-categories',
@@ -13,13 +18,16 @@ import { Category } from '../../core/models/category.model';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule, FormsModule,
-    IonContent, IonHeader, IonToolbar, IonTitle
+    IonContent, IonHeader, IonToolbar, IonTitle, IonIcon
   ],
   template: `
     <ion-header>
       <ion-toolbar>
         <ion-title>
-          <span class="toolbar-title">🏷️ Categories</span>
+          <span class="toolbar-title">
+            <ion-icon name="pricetag" style="vertical-align: middle; margin-right: 6px;"></ion-icon>
+            Categories
+          </span>
         </ion-title>
       </ion-toolbar>
     </ion-header>
@@ -30,23 +38,25 @@ import { Category } from '../../core/models/category.model';
         <div class="glass-card add-form animate-fade-in-up">
           <h3 class="form-title">New Category</h3>
           <div class="form-row">
-            <div class="emoji-input-wrap">
-              <input
-                type="text"
-                class="emoji-input"
-                placeholder="😀"
-                [value]="newEmoji()"
-                (input)="newEmoji.set(getInputValue($event))"
-                maxlength="4"
-                id="new-emoji-input" />
+            <div class="icon-input-wrap">
+              <ion-icon [name]="newIcon() || 'help-outline'" class="preview-icon"></ion-icon>
             </div>
-            <input
-              type="text"
-              class="label-input"
-              placeholder="Category name"
-              [value]="newLabel()"
-              (input)="newLabel.set(getInputValue($event))"
-              id="new-label-input" />
+            <div class="input-group">
+                <input
+                  type="text"
+                  class="label-input"
+                  placeholder="Icon name (e.g. pizza)"
+                  [value]="newIcon()"
+                  (input)="newIcon.set(getInputValue($event))"
+                  id="new-icon-input" />
+                <input
+                  type="text"
+                  class="label-input"
+                  placeholder="Category label"
+                  [value]="newLabel()"
+                  (input)="newLabel.set(getInputValue($event))"
+                  id="new-label-input" />
+            </div>
           </div>
           <div class="form-actions">
             <button class="btn btn--ghost" (click)="cancelAdd()">Cancel</button>
@@ -55,7 +65,9 @@ import { Category } from '../../core/models/category.model';
         </div>
       } @else {
         <button class="add-category-btn animate-fade-in" (click)="isAdding.set(true)" id="show-add-btn">
-          <span class="add-category-btn__icon">+</span>
+          <div class="add-category-btn__icon">
+            <ion-icon name="add"></ion-icon>
+          </div>
           <span>Add Category</span>
         </button>
       }
@@ -66,12 +78,12 @@ import { Category } from '../../core/models/category.model';
           <div class="glass-card category-card">
             <div class="category-color-bar" [style.background]="cat.color"></div>
             <div class="category-row">
-              <div class="category-emoji-wrap">
-                <span class="emoji-icon">{{ cat.emoji }}</span>
+              <div class="category-icon-wrap">
+                <ion-icon [name]="cat.icon" class="category-icon"></ion-icon>
               </div>
               <span class="category-label">{{ cat.label }}</span>
               <button class="delete-btn" (click)="deleteCategory(cat.id)" [attr.id]="'delete-' + cat.id">
-                <span class="delete-icon">✕</span>
+                <ion-icon name="trash-outline" class="delete-icon-native"></ion-icon>
               </button>
             </div>
           </div>
@@ -144,30 +156,30 @@ import { Category } from '../../core/models/category.model';
       margin-bottom: var(--spacing-md);
     }
 
-    .emoji-input-wrap {
-      width: 56px;
+    .icon-input-wrap {
+      width: 48px;
       height: 48px;
       display: flex;
       align-items: center;
       justify-content: center;
       background: var(--color-surface-alt);
       border-radius: var(--radius-sm);
-      overflow: hidden;
     }
 
-    .emoji-input {
-      width: 100%;
-      height: 100%;
-      padding: 0;
-      text-align: center;
-      font-size: var(--font-size-xl);
-      border: none;
-      background: transparent;
-      outline: none;
+    .preview-icon {
+        font-size: 1.5rem;
+        color: var(--color-primary);
+    }
+    
+    .input-group {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-xs);
     }
 
     .label-input {
-      flex: 1;
+      width: 100%;
       padding: var(--spacing-sm) var(--spacing-md);
       border: 1px solid var(--color-surface-alt);
       border-radius: var(--radius-sm);
@@ -257,7 +269,7 @@ import { Category } from '../../core/models/category.model';
       padding-left: calc(var(--spacing-md) + 4px);
     }
 
-    .category-emoji-wrap {
+    .category-icon-wrap {
       width: 40px;
       height: 40px;
       border-radius: var(--radius-sm);
@@ -265,6 +277,11 @@ import { Category } from '../../core/models/category.model';
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+
+    .category-icon {
+        font-size: 1.5rem;
+        color: var(--color-primary);
     }
 
     .category-label {
@@ -302,12 +319,19 @@ import { Category } from '../../core/models/category.model';
 export class CategoriesComponent {
   protected readonly categoryService = inject(CategoryService);
 
+  constructor() {
+    addIcons({
+      pricetag, add, helpOutline, trashOutline, close,
+      fastFood, car, cart, film, medkit, receipt, home, school, airplane, gift
+    });
+  }
+
   readonly isAdding = signal(false);
-  readonly newEmoji = signal('');
+  readonly newIcon = signal('');
   readonly newLabel = signal('');
 
   canAdd(): boolean {
-    return this.newEmoji().trim().length > 0 && this.newLabel().trim().length > 0;
+    return this.newIcon().trim().length > 0 && this.newLabel().trim().length > 0;
   }
 
   getInputValue(event: Event): string {
@@ -318,18 +342,18 @@ export class CategoriesComponent {
     if (!this.canAdd()) return;
     const category: Category = {
       id: this.newLabel().toLowerCase().replace(/\s+/g, '-'),
-      emoji: this.newEmoji().trim(),
+      icon: this.newIcon().trim(),
       label: this.newLabel().trim(),
       color: '#78716c',
     };
     await this.categoryService.addCategory(category);
-    this.newEmoji.set('');
+    this.newIcon.set('');
     this.newLabel.set('');
     this.isAdding.set(false);
   }
 
   cancelAdd(): void {
-    this.newEmoji.set('');
+    this.newIcon.set('');
     this.newLabel.set('');
     this.isAdding.set(false);
   }

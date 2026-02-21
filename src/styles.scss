@@ -258,11 +258,20 @@ body {
     border-radius: var(--radius);
     box-shadow: var(--glass-shadow);
     transition: transform var(--transition-base), box-shadow var(--transition-base);
+    position: relative;
+    overflow: hidden;
 }
 
-.glass-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+@media (hover: hover) {
+    .glass-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+}
+
+.glass-card:active {
+    transform: scale(0.98);
+    opacity: 0.9;
 }
 
 /* Standard Card */
@@ -274,9 +283,15 @@ body {
     transition: transform var(--transition-base), box-shadow var(--transition-base);
 }
 
-.card:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
+@media (hover: hover) {
+    .card:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+    }
+}
+
+.card:active {
+    background: var(--color-surface-alt);
 }
 
 /* Gradient Text */

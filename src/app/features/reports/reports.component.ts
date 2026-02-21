@@ -1,13 +1,18 @@
 import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
-  IonContent, IonHeader, IonToolbar, IonTitle
+  IonContent, IonHeader, IonToolbar, IonTitle, IonIcon
 } from '@ionic/angular/standalone';
 import { FormsModule } from '@angular/forms';
 import { ExpenseService } from '../../core/services/expense.service';
 import { CategoryService } from '../../core/services/category.service';
 import { CurrencyPipe } from '../../shared/pipes/currency.pipe';
 import { Expense } from '../../core/models/expense.model';
+import { addIcons } from 'ionicons';
+import {
+  barChart, wallet, receipt, trendingUp, search, calendar,
+  fastFood, car, cart, film, medkit, home, school, airplane, gift
+} from 'ionicons/icons';
 
 @Component({
   selector: 'app-reports',
@@ -16,13 +21,16 @@ import { Expense } from '../../core/models/expense.model';
   imports: [
     CommonModule, FormsModule,
     IonContent, IonHeader, IonToolbar, IonTitle,
-    CurrencyPipe
+    CurrencyPipe, IonIcon
   ],
   template: `
     <ion-header>
       <ion-toolbar>
         <ion-title>
-          <span class="toolbar-title">📊 Reports</span>
+          <span class="toolbar-title">
+            <ion-icon name="bar-chart" style="vertical-align: middle; margin-right: 6px;"></ion-icon>
+            Reports
+          </span>
         </ion-title>
       </ion-toolbar>
     </ion-header>
@@ -48,7 +56,7 @@ import { Expense } from '../../core/models/expense.model';
               <select class="filter-select" [value]="selectedCategoryId()" (change)="onCategoryChange($event)" id="category-select">
                 <option value="all">All Categories</option>
                 @for (cat of categoryService.categories(); track cat.id) {
-                  <option [value]="cat.id">{{ cat.emoji }} {{ cat.label }}</option>
+                  <option [value]="cat.id">{{ cat.label }}</option>
                 }
               </select>
               <span class="select-arrow">▾</span>
@@ -60,17 +68,17 @@ import { Expense } from '../../core/models/expense.model';
       <!-- Summary KPIs -->
       <div class="kpi-row stagger-children">
         <div class="glass-card kpi-card kpi-card--total">
-          <span class="kpi-icon">💰</span>
+          <ion-icon name="wallet" class="kpi-icon"></ion-icon>
           <span class="kpi-label">Total</span>
           <span class="kpi-value">{{ filteredTotal() | currency }}</span>
         </div>
         <div class="glass-card kpi-card kpi-card--count">
-          <span class="kpi-icon">🧾</span>
+          <ion-icon name="receipt" class="kpi-icon"></ion-icon>
           <span class="kpi-label">Count</span>
           <span class="kpi-value">{{ filteredExpenses().length }}</span>
         </div>
         <div class="glass-card kpi-card kpi-card--avg">
-          <span class="kpi-icon">📈</span>
+          <ion-icon name="trending-up" class="kpi-icon"></ion-icon>
           <span class="kpi-label">Average</span>
           <span class="kpi-value">{{ filteredAvg() | currency }}</span>
         </div>
@@ -82,8 +90,8 @@ import { Expense } from '../../core/models/expense.model';
           @for (expense of filteredExpenses(); track expense.id) {
             <div class="glass-card expense-card">
               <div class="expense-row">
-                <div class="expense-emoji-wrap">
-                  <span class="emoji-icon">{{ expense.category }}</span>
+                <div class="expense-icon-wrap">
+                  <ion-icon [name]="expense.category" class="expense-icon"></ion-icon>
                 </div>
                 <div class="expense-info">
                   <span class="expense-label">{{ expense.categoryLabel }}</span>
@@ -100,7 +108,7 @@ import { Expense } from '../../core/models/expense.model';
       } @else {
         <div class="glass-card empty-card">
           <div class="empty-state">
-            <span class="empty-state__icon">🔍</span>
+            <ion-icon name="search" class="empty-state__icon"></ion-icon>
             <p class="empty-state__text">No expenses found for this filter</p>
           </div>
         </div>
@@ -194,6 +202,7 @@ import { Expense } from '../../core/models/expense.model';
     .kpi-icon {
       font-size: 1.5rem;
       margin-bottom: var(--spacing-xs);
+      color: var(--color-primary);
     }
 
     .kpi-label {
@@ -229,7 +238,7 @@ import { Expense } from '../../core/models/expense.model';
       gap: var(--spacing-sm);
     }
 
-    .expense-emoji-wrap {
+    .expense-icon-wrap {
       width: 40px;
       height: 40px;
       border-radius: var(--radius-sm);
@@ -237,6 +246,11 @@ import { Expense } from '../../core/models/expense.model';
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+    
+    .expense-icon {
+        font-size: 1.25rem;
+        color: var(--color-primary);
     }
 
     .expense-info {
@@ -282,6 +296,7 @@ import { Expense } from '../../core/models/expense.model';
 
     .empty-state__icon {
       font-size: 2.5rem;
+      color: var(--color-text-secondary);
     }
 
     .empty-state__text {
@@ -298,6 +313,13 @@ export class ReportsComponent {
   protected readonly expenseService = inject(ExpenseService);
   protected readonly categoryService = inject(CategoryService);
 
+  constructor() {
+    addIcons({
+      barChart, wallet, receipt, trendingUp, search, calendar,
+      fastFood, car, cart, film, medkit, home, school, airplane, gift
+    });
+  }
+
   readonly selectedMonth = signal<string>(this.getCurrentMonth());
   readonly selectedCategoryId = signal<string>('all');
 
@@ -310,7 +332,7 @@ export class ReportsComponent {
     if (this.selectedCategoryId() !== 'all') {
       const cat = this.categoryService.categories().find(c => c.id === this.selectedCategoryId());
       if (cat) {
-        expenses = expenses.filter(e => e.category === cat.emoji);
+        expenses = expenses.filter(e => e.category === cat.icon);
       }
     }
 

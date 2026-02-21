@@ -2,9 +2,11 @@ import { Pipe, PipeTransform } from '@angular/core';
 
 @Pipe({ name: 'relativeDate', standalone: true })
 export class RelativeDatePipe implements PipeTransform {
-    transform(value: string | null | undefined): string {
+    transform(value: any): string {
         if (!value) return '';
-        const date = new Date(value);
+        const date = value instanceof Date ? value : new Date(value);
+        if (isNaN(date.getTime())) return '';
+
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());

@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { IonApp, IonRouterOutlet } from '@ionic/angular/standalone';
 import { NotificationToastComponent } from './shared/notification-toast.component';
+import { ThemeService } from './core/services/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -14,4 +15,6 @@ import { NotificationToastComponent } from './shared/notification-toast.componen
   `,
   styles: [`:host { display: block; }`]
 })
-export class App { }
+export class App {
+  constructor(private themeService: ThemeService) { }
+}

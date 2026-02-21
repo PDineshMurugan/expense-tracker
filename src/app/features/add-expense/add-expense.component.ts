@@ -3,13 +3,20 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import {
   IonContent, IonHeader, IonToolbar, IonTitle,
-  IonBackButton, IonButtons
+  IonBackButton, IonButtons, IonIcon
 } from '@ionic/angular/standalone';
 import { FormsModule } from '@angular/forms';
 import { ExpenseService } from '../../core/services/expense.service';
 import { CategoryService } from '../../core/services/category.service';
+import { AccountService } from '../../core/services/account.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { SmsService } from '../../core/services/sms.service';
 import { PAYMENT_MODES, PaymentMode } from '../../core/models/expense.model';
+import { addIcons } from 'ionicons';
+import {
+  phonePortraitOutline, cashOutline, cardOutline, walletOutline, createOutline,
+  fastFood, car, cart, film, medkit, receipt, home, school, airplane, gift, swapHorizontal
+} from 'ionicons/icons';
 
 @Component({
   selector: 'app-add-expense',
@@ -18,7 +25,7 @@ import { PAYMENT_MODES, PaymentMode } from '../../core/models/expense.model';
   imports: [
     CommonModule, FormsModule,
     IonContent, IonHeader, IonToolbar, IonTitle,
-    IonBackButton, IonButtons
+    IonBackButton, IonButtons, IonIcon
   ],
   template: `
     <ion-header>
@@ -52,6 +59,32 @@ import { PAYMENT_MODES, PaymentMode } from '../../core/models/expense.model';
           </div>
         </div>
 
+        <!-- Account Selection & Transfer Toggle -->
+        @if (accountService.accounts().length > 0) {
+          <div class="section toggle-section animate-fade-in-up">
+            <div class="account-select-wrapper">
+              <span class="section-label" style="margin-bottom: 0;">Account</span>
+              <select class="account-select" [ngModel]="selectedAccountId()" (ngModelChange)="selectedAccountId.set($event)">
+                <option value="">No Account</option>
+                @for (acc of accountService.accounts(); track acc.id) {
+                  <option [value]="acc.id">{{ acc.name }} ({{ acc.accountIdentifier }})</option>
+                }
+              </select>
+            </div>
+            
+            <div class="transfer-toggle-wrapper">
+              <label class="transfer-label">
+                <ion-icon name="swap-horizontal"></ion-icon>
+                Is Transfer?
+              </label>
+              <div class="toggle-switch">
+                <input type="checkbox" [checked]="isTransfer()" (change)="toggleTransfer($event)" id="transfer-toggle" />
+                <span class="slider"></span>
+              </div>
+            </div>
+          </div>
+        }
+
         <!-- Category Grid -->
         <div class="section">
           <h3 class="section-label">Category</h3>
@@ -59,10 +92,10 @@ import { PAYMENT_MODES, PaymentMode } from '../../core/models/expense.model';
             @for (cat of categoryService.categories(); track cat.id) {
               <button
                 class="category-pill"
-                [class.category-pill--selected]="selectedCategory() === cat.emoji"
-                (click)="selectCategory(cat.emoji, cat.label)"
+                [class.category-pill--selected]="selectedCategory() === cat.icon"
+                (click)="selectCategory(cat.icon, cat.label)"
                 [attr.id]="'cat-' + cat.id">
-                <span class="category-pill__emoji">{{ cat.emoji }}</span>
+                <ion-icon [name]="cat.icon" class="category-pill__icon"></ion-icon>
                 <span class="category-pill__name">{{ cat.label }}</span>
               </button>
             }
@@ -79,7 +112,7 @@ import { PAYMENT_MODES, PaymentMode } from '../../core/models/expense.model';
                 [class.payment-chip--selected]="selectedPaymentMode() === mode"
                 (click)="selectedPaymentMode.set(mode)"
                 [attr.id]="'pay-' + mode">
-                <span class="payment-chip__icon">{{ getPaymentIcon(mode) }}</span>
+                <ion-icon [name]="getPaymentIcon(mode)" class="payment-chip__icon"></ion-icon>
                 {{ mode }}
               </button>
             }
@@ -89,7 +122,7 @@ import { PAYMENT_MODES, PaymentMode } from '../../core/models/expense.model';
         <!-- Note -->
         <div class="section">
           <div class="note-wrapper">
-            <span class="note-icon">📝</span>
+            <ion-icon name="create-outline" class="note-icon"></ion-icon>
             <input
               type="text"
               class="note-input"
@@ -196,6 +229,105 @@ import { PAYMENT_MODES, PaymentMode } from '../../core/models/expense.model';
       margin-bottom: var(--spacing-sm);
     }
 
+    /* ── Toggles & Selects ── */
+    .toggle-section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md);
+      background: var(--glass-bg);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--color-surface-alt);
+      border-radius: var(--radius);
+      padding: var(--spacing-md);
+    }
+
+    .account-select-wrapper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .account-select {
+      background: rgba(var(--color-primary-rgb), 0.1);
+      color: var(--color-primary);
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .transfer-toggle-wrapper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: var(--spacing-sm);
+      border-top: 1px solid var(--color-surface-alt);
+    }
+
+    .transfer-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      color: var(--color-text);
+    }
+    
+    .transfer-label ion-icon {
+      color: var(--color-primary);
+      font-size: 1.25rem;
+    }
+
+    /* Custom Toggle Switch */
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--color-surface-alt);
+      transition: .4s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background: var(--gradient-primary);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+
     /* ── Category Pills ── */
     .category-grid {
       display: grid;
@@ -231,8 +363,9 @@ import { PAYMENT_MODES, PaymentMode } from '../../core/models/expense.model';
       transform: translateY(-2px);
     }
 
-    .category-pill__emoji {
+    .category-pill__icon {
       font-size: 1.75rem;
+      color: var(--color-primary);
     }
 
     .category-pill__name {
@@ -285,7 +418,7 @@ import { PAYMENT_MODES, PaymentMode } from '../../core/models/expense.model';
     }
 
     .payment-chip__icon {
-      font-size: 1rem;
+      font-size: 1.25rem;
     }
 
     /* ── Note ── */
@@ -307,7 +440,8 @@ import { PAYMENT_MODES, PaymentMode } from '../../core/models/expense.model';
     }
 
     .note-icon {
-      font-size: 1rem;
+      font-size: 1.25rem;
+      color: var(--color-text-secondary);
     }
 
     .note-input {
@@ -366,9 +500,42 @@ import { PAYMENT_MODES, PaymentMode } from '../../core/models/expense.model';
 })
 export class AddExpenseComponent {
   protected readonly categoryService = inject(CategoryService);
+  protected readonly accountService = inject(AccountService);
   private readonly expenseService = inject(ExpenseService);
   private readonly notificationService = inject(NotificationService);
+  private readonly smsService = inject(SmsService);
   private readonly router = inject(Router);
+
+  private pendingSmsId?: string;
+
+  constructor() {
+    addIcons({
+      phonePortraitOutline, cashOutline, cardOutline, walletOutline, createOutline,
+      fastFood, car, cart, film, medkit, receipt, home, school, airplane, gift, swapHorizontal
+    });
+
+    const state = this.router.getCurrentNavigation()?.extras.state || history.state;
+    if (state?.smsInterop) {
+      const sms = state.smsInterop;
+      this.amount.set(sms.amount || 0);
+      this.note.set(sms.description || '');
+
+      const accounts = this.accountService.accounts();
+      if (sms.accountIdentifier) {
+        const matchingAcc = accounts.find(a =>
+          a.accountIdentifier && a.accountIdentifier.includes(sms.accountIdentifier!)
+        );
+        if (matchingAcc) this.selectedAccountId.set(matchingAcc.id);
+      }
+
+      this.isTransfer.set(sms.isTransfer || false);
+      if (sms.isTransfer) {
+        this.selectedCategory.set('swap-horizontal');
+        this.selectedCategoryLabel.set('Transfer');
+      }
+      this.pendingSmsId = sms.id;
+    }
+  }
 
   readonly paymentModes = PAYMENT_MODES;
 
@@ -377,14 +544,31 @@ export class AddExpenseComponent {
   readonly selectedCategoryLabel = signal<string>('');
   readonly selectedPaymentMode = signal<PaymentMode>('UPI');
   readonly note = signal<string>('');
+  readonly selectedAccountId = signal<string>('');
+  readonly isTransfer = signal<boolean>(false);
 
   canSave(): boolean {
+    // If it's a transfer, we don't strictly enforce category selection
+    if (this.isTransfer() && this.amount() > 0) return true;
     return this.amount() > 0 && this.selectedCategory() !== '';
   }
 
-  selectCategory(emoji: string, label: string): void {
-    this.selectedCategory.set(emoji);
+  selectCategory(icon: string, label: string): void {
+    if (this.isTransfer()) return; // Don't change category manually if transfer is forced
+    this.selectedCategory.set(icon);
     this.selectedCategoryLabel.set(label);
+  }
+
+  toggleTransfer(event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    this.isTransfer.set(checked);
+    if (checked) {
+      this.selectedCategory.set('swap-horizontal');
+      this.selectedCategoryLabel.set('Transfer');
+    } else {
+      this.selectedCategory.set('');
+      this.selectedCategoryLabel.set('');
+    }
   }
 
   onAmountChange(event: Event): void {
@@ -398,10 +582,10 @@ export class AddExpenseComponent {
 
   getPaymentIcon(mode: PaymentMode): string {
     switch (mode) {
-      case 'UPI': return '📱';
-      case 'Cash': return '💵';
-      case 'Card': return '💳';
-      default: return '💰';
+      case 'UPI': return 'phone-portrait-outline';
+      case 'Cash': return 'cash-outline';
+      case 'Card': return 'card-outline';
+      default: return 'wallet-outline';
     }
   }
 
@@ -414,7 +598,15 @@ export class AddExpenseComponent {
       categoryLabel: this.selectedCategoryLabel(),
       note: this.note(),
       paymentMode: this.selectedPaymentMode(),
+      accountId: this.selectedAccountId() || undefined,
+      isTransfer: this.isTransfer(),
     });
+
+    if (this.pendingSmsId) {
+      this.smsService.removeSmsExpense(this.pendingSmsId);
+      this.pendingSmsId = undefined;
+      history.replaceState({}, '');
+    }
 
     this.notificationService.success(`₹${this.amount()} expense saved!`);
     this.router.navigate(['/tabs/dashboard']);

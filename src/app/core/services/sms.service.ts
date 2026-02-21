@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { ParsedSMS, parseMultipleSMS } from '../utils/sms-parser.util';
+import { ParsedSMS, parseSMS } from '../utils/sms-parser.util';
 import { NotificationService } from './notification.service';
 
 @Injectable({ providedIn: 'root' })
@@ -9,134 +9,262 @@ export class SmsService {
     private _lastScanTime = signal<Date | null>(null);
     private _smsExpenses = signal<ParsedSMS[]>([]);
 
+    // Progress signals for UI feedback during heavy scans
+    private _totalMessagesToScan = signal<number>(0);
+    private _messagesScanned = signal<number>(0);
+
     readonly smsEnabled = this._smsEnabled.asReadonly();
     readonly isScanning = this._isScanning.asReadonly();
     readonly lastScanTime = this._lastScanTime.asReadonly();
     readonly smsExpenses = this._smsExpenses.asReadonly();
+    readonly totalMessagesToScan = this._totalMessagesToScan.asReadonly();
+    readonly messagesScanned = this._messagesScanned.asReadonly();
 
     constructor(private notificationService: NotificationService) {
-        // Load saved state
+        // Load persistent enabled state
         const saved = localStorage.getItem('sms-enabled');
         if (saved === 'true') {
             this._smsEnabled.set(true);
         }
-    }
 
-    toggleSmsEnabled(): void {
-        const newValue = !this._smsEnabled();
-        this._smsEnabled.set(newValue);
-        localStorage.setItem('sms-enabled', String(newValue));
-
-        if (newValue) {
-            this.notificationService.info('SMS reading enabled. Tap "Scan SMS Now" to detect expenses.');
-        } else {
-            this._smsExpenses.set([]);
-            this.notificationService.info('SMS reading disabled.');
+        // Load persisted detected expenses from previous scans
+        try {
+            const rawExp = localStorage.getItem('persisted-sms-expenses');
+            if (rawExp) {
+                const parsed = JSON.parse(rawExp);
+                parsed.forEach((p: any) => {
+                    if (p.date) p.date = new Date(p.date);
+                });
+                this._smsExpenses.set(parsed);
+            }
+        } catch (e) {
+            console.warn('[SmsService] Failed to load persisted SMS expenses', e);
         }
     }
 
+    private FINGERPRINT_STORAGE_KEY = 'sms-fingerprints-v1';
+
+    private loadSeenFingerprints(): Record<string, number> {
+        try {
+            const raw = localStorage.getItem(this.FINGERPRINT_STORAGE_KEY) || '{}';
+            return JSON.parse(raw) as Record<string, number>;
+        } catch (e) {
+            return {};
+        }
+    }
+
+    private saveSeenFingerprints(map: Record<string, number>) {
+        try {
+            localStorage.setItem(this.FINGERPRINT_STORAGE_KEY, JSON.stringify(map));
+        } catch (e) {
+            console.warn('[SmsService] Failed saving fingerprints', e);
+        }
+    }
+
+    private fingerprintOf(s: string): string {
+        let h = 5381;
+        for (let i = 0; i < s.length; i++) {
+            h = ((h << 5) + h) + s.charCodeAt(i);
+            h = h >>> 0;
+        }
+        return h.toString(36);
+    }
+
+    async toggleSmsEnabled(): Promise<void> {
+        const newValue = !this._smsEnabled();
+
+        if (newValue) {
+            const hasPermission = await this.requestSmsPermission();
+            if (!hasPermission) {
+                this.notificationService.error(
+                    'SMS permission denied. Please grant permission in Android settings to use this feature.'
+                );
+                return;
+            }
+            this._smsEnabled.set(true);
+            localStorage.setItem('sms-enabled', 'true');
+            this.notificationService.info('✅ SMS features enabled! Use "Scan SMS Now" to find past transactions.');
+        } else {
+            this._smsEnabled.set(false);
+            localStorage.setItem('sms-enabled', 'false');
+            this.notificationService.info('SMS features disabled.');
+        }
+    }
+
+    /**
+     * Scans device SMS for bank transactions.
+     * Uses deduping and limits scan range for performance.
+     */
     async scanSms(): Promise<void> {
         if (this._isScanning()) return;
 
         this._isScanning.set(true);
+        console.log('[SmsService] Starting SMS history scan...');
 
         try {
             const messages = await this.readSmsMessages();
-            const parsed = parseMultipleSMS(messages);
 
-            this._smsExpenses.set(parsed);
+            // Performance: Limit to last 2000 messages in production
+            const messagesToScan = messages.slice(0, 2000);
+            this._totalMessagesToScan.set(messagesToScan.length);
+            this._messagesScanned.set(0);
+
+            const parsedResults: ParsedSMS[] = [];
+            const seen = this.loadSeenFingerprints();
+            const newFingerprints: Record<string, number> = {};
+
+            for (let i = 0; i < messagesToScan.length; i++) {
+                const msg = messagesToScan[i];
+                try {
+                    const sender = (msg as any).address || (msg as any).sender || (msg as any).from;
+                    const p = parseSMS(msg.body, sender as string | undefined);
+
+                    if (p) {
+                        p.sender = (sender as string) || p.sender;
+                        if (msg.date) p.date = msg.date;
+
+                        // Create unique fingerprint for deduping
+                        const keySeed = `${p.amount}|${p.description}|${p.date ? p.date.getTime() : ''}`;
+                        const fp = this.fingerprintOf(keySeed);
+                        const seenTs = seen[fp];
+                        const ts = (p.date && p.date.getTime()) || Date.now();
+
+                        // Ignore if seen in last year
+                        if (fp && seenTs && Math.abs(ts - seenTs) < (365 * 24 * 60 * 60 * 1000)) {
+                            // duplicate
+                        } else {
+                            parsedResults.push(p);
+                            if (fp) newFingerprints[fp] = ts;
+                        }
+                    }
+                } catch (e) {
+                    // Fail silently for individual bad messages
+                }
+
+                // Periodic UI update
+                if (i % 20 === 0 || i === messagesToScan.length - 1) {
+                    this._messagesScanned.set(i + 1);
+                }
+            }
+
+            // Production Filter: Ensure it's a success transaction and from a likely bank header
+            const filteredResults = parsedResults.filter(p => {
+                const isSuccess = p.status === 'success';
+                const isBankSender = !p.sender || /^[A-Z]{2}-/.test(p.sender) || p.sender.length >= 6;
+                return isSuccess && isBankSender;
+            });
+
+            // Persist fingerprints for future scans
+            const merged = { ...seen };
+            for (const k of Object.keys(newFingerprints)) merged[k] = newFingerprints[k];
+            this.saveSeenFingerprints(merged);
+
+            const existing = this._smsExpenses();
+            const existingIds = new Set(existing.map(e => e.id));
+            const trulyNew = filteredResults.filter(r => !existingIds.has(r.id));
+            const updatedExpenses = [...trulyNew, ...existing];
+
+            this._smsExpenses.set(updatedExpenses);
+            localStorage.setItem('persisted-sms-expenses', JSON.stringify(updatedExpenses));
             this._lastScanTime.set(new Date());
 
-            if (parsed.length > 0) {
-                this.notificationService.success(
-                    `✅ SMS read successfully! Found ${parsed.length} transaction${parsed.length > 1 ? 's' : ''}.`
-                );
+            if (filteredResults.length > 0) {
+                this.notificationService.success(`Found ${filteredResults.length} new bank transactions!`);
             } else {
-                this.notificationService.info('No bank transactions found in recent SMS.');
+                this.notificationService.info('Scan complete. No new bank transactions found.');
             }
+
         } catch (error) {
-            this.notificationService.error('Failed to read SMS. Please check permissions.');
-            console.error('SMS scan error:', error);
+            const errorMsg = error instanceof Error ? error.message : 'Scan failed';
+            console.error('[SmsService] Scan error:', error);
+            this.notificationService.error(`SMS Scan Error: ${errorMsg}`);
         } finally {
             this._isScanning.set(false);
         }
     }
 
-    /**
-     * Read SMS messages from the device.
-     * This method requires a native Capacitor SMS plugin to be installed.
-     */
-    private async readSmsMessages(): Promise<{ body: string; date?: Date }[]> {
-        // Attempt to read from native device
-        const messages = await this.readNativeSms();
-        
-        if (messages.length === 0) {
-            throw new Error(
-                'No SMS messages found. Ensure the device has SMS permissions enabled. ' +
-                'For development, install a Capacitor SMS plugin (e.g., capacitor-community/sms-reader) ' +
-                'and add READ_SMS permission in AndroidManifest.xml'
-            );
-        }
-        
-        return messages;
+    removeSmsExpense(id: string): void {
+        const current = this._smsExpenses();
+        const updated = current.filter(e => e.id !== id);
+        this._smsExpenses.set(updated);
+        localStorage.setItem('persisted-sms-expenses', JSON.stringify(updated));
     }
 
-    /**
+    private async readSmsMessages(): Promise<{ body: string; date?: Date; address?: string }[]> {
+        return await this.readNativeSms();
+    }
 
-     * Read SMS from native device using Capacitor plugin.
-     * Requires a Capacitor SMS reader plugin to be installed.
-     * 
-     * Installation:
-     * ```
-     * npm install capacitor-community/sms-reader
-     * npx cap sync
-     * ```
-     * 
-     * For Android, add READ_SMS permission to AndroidManifest.xml
-     */
-    private async readNativeSms(): Promise<{ body: string; date?: Date }[]> {
-        try {
-            const cap = (window as any)?.Capacitor;
-            
-            // Check if the device is native
-            if (!cap?.isNativePlatform?.()) {
-                throw new Error('Not running on a native platform');
+    private async readNativeSms(): Promise<{ body: string; date?: Date; address?: string }[]> {
+        const cap = (window as any)?.Capacitor;
+        if (!cap?.isNativePlatform?.()) {
+            throw new Error('Native platform required for SMS access.');
+        }
+
+        // 1. Try Cordova SMS Plugin
+        const cordovaSMS = (window as any)?.SMS;
+        if (cordovaSMS && typeof cordovaSMS.listSMS === 'function') {
+            try {
+                const results = await new Promise<any[]>((resolve, reject) => {
+                    cordovaSMS.listSMS(
+                        { box: 'inbox', maxCount: 2000 },
+                        (data: any) => resolve(data),
+                        (err: any) => reject(err)
+                    );
+                });
+
+                if (Array.isArray(results)) {
+                    return results.map(item => ({
+                        body: item.body || '',
+                        address: item.address || item.from || '',
+                        date: item.date ? new Date(Number(item.date)) : undefined
+                    })).filter(m => m.body);
+                }
+            } catch (e) {
+                console.warn('[SmsService] Cordova listSMS failed, trying Capacitor fallbacks');
             }
+        }
 
-            const SmsReader = cap?.Plugins?.SmsReader;
+        // 2. Try Capacitor Plugin Fallbacks
+        const plugins = cap?.Plugins || {};
+        const candidates = ['listSMS', 'getMessages', 'getAll', 'getInbox', 'list', 'getSmsList'];
 
-            if (!SmsReader) {
-                throw new Error(
-                    'SMS Reader plugin not available. ' +
-                    'Install it with: npm install capacitor-community/sms-reader'
-                );
-            }
-
-            // Request READ_SMS permission first (Android)
-            if (cap?.Plugins?.Permissions) {
-                try {
-                    await cap.Plugins.Permissions.query({ name: 'READ_SMS' });
-                } catch (e) {
-                    console.warn('Could not verify SMS permission:', e);
+        for (const pluginName of Object.keys(plugins)) {
+            const plugin = plugins[pluginName];
+            for (const method of candidates) {
+                if (plugin && typeof plugin[method] === 'function') {
+                    try {
+                        const res = await plugin[method]({ box: 'inbox', maxCount: 1000 });
+                        const arr = Array.isArray(res) ? res : (res?.messages || res?.data || res?.sms || []);
+                        if (arr.length > 0) {
+                            return arr.map((item: any) => ({
+                                body: item.body || item.message || item.text || '',
+                                address: item.address || item.from || item.sender || '',
+                                date: item.date ? new Date(Number(item.date)) : undefined
+                            })).filter((m: any) => m.body);
+                        }
+                    } catch (e) { }
                 }
             }
+        }
 
-            const result = await SmsReader.getSms({
-                maxCount: 100,
-                filter: 'inbox'
-            });
+        throw new Error('No compatible SMS plugin found or permission missing.');
+    }
 
-            if (!result?.messages || result.messages.length === 0) {
-                throw new Error('No SMS messages found on device');
-            }
+    private async requestSmsPermission(): Promise<boolean> {
+        const cap = (window as any)?.Capacitor;
+        if (!cap?.isNativePlatform?.()) return true;
 
-            return result.messages.map((msg: any) => ({
-                body: msg.body || msg.text || '',
-                date: msg.date ? new Date(msg.date) : new Date()
-            }));
-        } catch (error) {
-            const errorMsg = error instanceof Error ? error.message : String(error);
-            throw new Error(`Failed to read SMS: ${errorMsg}`);
+        const Permissions = cap?.Plugins?.Permissions;
+        if (!Permissions) return true;
+
+        try {
+            const result = await Permissions.requestPermissions([
+                { name: 'READ_SMS' },
+                { name: 'RECEIVE_SMS' }
+            ]);
+            return result?.permissions?.every((p: any) => p.state === 'granted') ?? false;
+        } catch (e) {
+            return true; // Let the actual read attempt handle failures
         }
     }
 }

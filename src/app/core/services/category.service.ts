@@ -43,7 +43,7 @@ export class CategoryService {
         this._categories.update(list => list.filter(c => c.id !== id));
     }
 
-    getCategoryByEmoji(emoji: string): Category | undefined {
-        return this._categories().find(c => c.emoji === emoji);
+    getCategoryByIcon(icon: string): Category | undefined {
+        return this._categories().find(c => c.icon === icon);
     }
 }
