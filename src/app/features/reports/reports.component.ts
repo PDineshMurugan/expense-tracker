@@ -1,7 +1,8 @@
 import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
-  IonContent, IonHeader, IonToolbar, IonTitle, IonIcon
+  IonContent, IonHeader, IonToolbar, IonTitle, IonIcon,
+  IonRefresher, IonRefresherContent
 } from '@ionic/angular/standalone';
 import { FormsModule } from '@angular/forms';
 import { ExpenseService } from '../../core/services/expense.service';
@@ -21,7 +22,7 @@ import {
   imports: [
     CommonModule, FormsModule,
     IonContent, IonHeader, IonToolbar, IonTitle,
-    CurrencyPipe, IonIcon
+    CurrencyPipe, IonIcon, IonRefresher, IonRefresherContent
   ],
   template: `
     <ion-header>
@@ -36,6 +37,10 @@ import {
     </ion-header>
 
     <ion-content class="ion-padding">
+      <ion-refresher slot="fixed" (ionRefresh)="handleRefresh($event)">
+        <ion-refresher-content></ion-refresher-content>
+      </ion-refresher>
+
       <!-- Filters -->
       <div class="glass-card filter-card animate-fade-in">
         <div class="filter-row">
@@ -401,5 +406,10 @@ export class ReportsComponent implements OnInit {
 
   getNote(expense: Expense): string {
     return (expense as any).notes || '';
+  }
+
+  async handleRefresh(event: any) {
+    await this.loadData();
+    event.target.complete();
   }
 }

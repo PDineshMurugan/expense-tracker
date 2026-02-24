@@ -12,11 +12,14 @@ import { SmsService } from '../../core/services/sms.service';
 import { NotificationReaderService } from '../../core/services/notification-reader.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { CurrencyPipe } from '../../shared/pipes/currency.pipe';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
 import { addIcons } from 'ionicons';
 import {
   cash, phonePortrait, notifications, colorPalette, moon,
   briefcase, cloudDownload, informationCircle, search, arrowForward,
-  wallet, settings, card
+  wallet, settings, card, pricetag
 } from 'ionicons/icons';
 
 @Component({
@@ -162,6 +165,22 @@ import {
           </button>
         </div>
 
+        <!-- Categories Management -->
+        <div class="glass-card settings-section">
+          <div class="section-header">
+            <ion-icon name="pricetag" class="section-icon-native"></ion-icon>
+            <h3 class="section-title">Categories</h3>
+          </div>
+          <button class="action-btn" routerLink="/tabs/categories">
+            <ion-icon name="pricetag" class="action-btn__icon"></ion-icon>
+            <div class="action-btn__text">
+              <span class="action-btn__label">Manage Categories</span>
+              <span class="action-btn__desc">Add your own custom expense categories</span>
+            </div>
+            <ion-icon name="arrow-forward" class="action-btn__arrow"></ion-icon>
+          </button>
+        </div>
+
         <!-- Appearance -->
         <div class="glass-card settings-section">
           <div class="section-header">
@@ -185,14 +204,22 @@ import {
             <ion-icon name="briefcase" class="section-icon-native"></ion-icon>
             <h3 class="section-title">Data</h3>
           </div>
-          <button class="action-btn" (click)="exportData()" id="export-btn">
-            <ion-icon name="cloud-download" class="action-btn__icon"></ion-icon>
-            <div class="action-btn__text">
-              <span class="action-btn__label">Export Data (JSON)</span>
-              <span class="action-btn__desc">Download a backup of all your expenses</span>
-            </div>
-            <ion-icon name="arrow-forward" class="action-btn__arrow"></ion-icon>
-          </button>
+          <div class="export-actions">
+            <button class="action-btn flex-1" (click)="exportDataCsv()">
+              <ion-icon name="cloud-download" class="action-btn__icon"></ion-icon>
+              <div class="action-btn__text">
+                <span class="action-btn__label">Export CSV</span>
+                <span class="action-btn__desc">Spreadsheet</span>
+              </div>
+            </button>
+            <button class="action-btn flex-1" (click)="exportDataJson()">
+              <ion-icon name="cloud-download" class="action-btn__icon"></ion-icon>
+              <div class="action-btn__text">
+                <span class="action-btn__label">Export JSON</span>
+                <span class="action-btn__desc">Full Backup</span>
+              </div>
+            </button>
+          </div>
         </div>
 
         <!-- About -->
@@ -505,6 +532,14 @@ import {
       text-align: left;
     }
 
+    .export-actions {
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+    .flex-1 {
+      flex: 1;
+    }
+
     .action-btn__label {
       font-size: var(--font-size-sm);
       font-weight: var(--font-weight-semibold);
@@ -567,7 +602,7 @@ export class SettingsComponent {
     addIcons({
       cash, phonePortrait, notifications, colorPalette, moon,
       briefcase, cloudDownload, informationCircle, search, arrowForward,
-      wallet, settings, card
+      wallet, settings, card, pricetag
     });
 
     const currentBudget = this.budgetService.monthlyBudget();
@@ -598,15 +633,69 @@ export class SettingsComponent {
     return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   }
 
-  async exportData(): Promise<void> {
+  async exportDataJson(): Promise<void> {
     const data = await this.storageService.exportAll();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `expense-tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    this.notificationService.success('Data exported successfully!');
+    const jsonStr = JSON.stringify(data, null, 2);
+    const fileName = `expense-tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
+    await this.downloadOrShare(jsonStr, fileName, 'application/json');
+  }
+
+  async exportDataCsv(): Promise<void> {
+    const data = await this.storageService.exportAll();
+    const expenses: any[] = data.expenses || [];
+    if (expenses.length === 0) {
+      this.notificationService.success('No data to export.');
+      return;
+    }
+
+    // Sort expenses by date descending
+    expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const headers = ['Date', 'Amount', 'Type', 'Category', 'Account', 'Notes'];
+    const rows = expenses.map(e => [
+      e.date,
+      e.amount,
+      e.type,
+      e.categoryId,
+      e.accountId,
+      `"${(e.notes || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\\n');
+    const fileName = `expense-tracker-backup-${new Date().toISOString().split('T')[0]}.csv`;
+    await this.downloadOrShare(csvContent, fileName, 'text/csv');
+  }
+
+  private async downloadOrShare(content: string, fileName: string, mimeType: string): Promise<void> {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: content,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8
+        });
+
+        await Share.share({
+          title: 'Exported Data',
+          text: 'Here is your expense tracker backup.',
+          url: result.uri,
+          dialogTitle: 'Share or Save Data'
+        });
+        this.notificationService.success('Data exported successfully!');
+      } catch (err) {
+        console.error('Export failed', err);
+        this.notificationService.error('Failed to export data');
+      }
+    } else {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+      this.notificationService.success('Data exported successfully!');
+    }
   }
 }

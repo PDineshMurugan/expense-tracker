@@ -1,6 +1,6 @@
 import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import {
   IonContent, IonHeader, IonToolbar, IonTitle,
   IonBackButton, IonButtons, IonIcon
@@ -12,6 +12,7 @@ import { AccountService } from '../../core/services/account.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { SmsService } from '../../core/services/sms.service';
 import { PAYMENT_MODES, PaymentMode } from '../../core/models/expense.model';
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { addIcons } from 'ionicons';
 import {
   phonePortraitOutline, cashOutline, cardOutline, walletOutline, createOutline,
@@ -51,6 +52,7 @@ import {
               [value]="amount()"
               (input)="onAmountChange($event)"
               inputmode="decimal"
+              min="0"
               autofocus
               id="amount-input" />
           </div>
@@ -84,6 +86,14 @@ import {
             </div>
           </div>
         }
+
+        <!-- Date Picker -->
+        <div class="section">
+          <h3 class="section-label">Date</h3>
+          <div class="date-picker-wrapper">
+             <input type="date" class="date-input" [ngModel]="transactionDate()" (ngModelChange)="transactionDate.set($event)" id="expense-date" />
+          </div>
+        </div>
 
         <!-- Category Grid -->
         <div class="section">
@@ -444,6 +454,26 @@ import {
       color: var(--color-text-secondary);
     }
 
+    /* ── Date Picker ── */
+    .date-picker-wrapper {
+      padding: var(--spacing-sm) var(--spacing-md);
+      border: 1px solid var(--color-surface-alt);
+      border-radius: var(--radius);
+      background: var(--glass-bg);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    
+    .date-input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--color-text);
+      font-size: var(--font-size-sm);
+      outline: none;
+      font-family: var(--font-family);
+    }
+
     .note-input {
       flex: 1;
       background: transparent;
@@ -505,6 +535,7 @@ export class AddExpenseComponent {
   private readonly notificationService = inject(NotificationService);
   private readonly smsService = inject(SmsService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   private pendingSmsId?: string;
 
@@ -533,7 +564,24 @@ export class AddExpenseComponent {
         this.selectedCategory.set('transfer');
         this.selectedCategoryLabel.set('Transfer');
       }
+      if (sms.date) {
+        const d = sms.date instanceof Date ? sms.date : new Date(sms.date);
+        if (!isNaN(d.getTime())) {
+          this.transactionDate.set(d.toISOString().split('T')[0]);
+        }
+      }
       this.pendingSmsId = sms.id;
+    }
+
+    const queryParams = this.route.snapshot.queryParams;
+    if (queryParams['amount']) {
+      this.amount.set(parseFloat(queryParams['amount']) || 0);
+    }
+    if (queryParams['note']) {
+      this.note.set(queryParams['note']);
+    }
+    if (queryParams['date']) {
+      this.transactionDate.set(queryParams['date']);
     }
   }
 
@@ -547,6 +595,14 @@ export class AddExpenseComponent {
   readonly selectedAccountId = signal<string>('');
   readonly isTransfer = signal<boolean>(false);
 
+  private static getLocalISOString(): string {
+    const d = new Date();
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffset).toISOString().split('T')[0];
+  }
+
+  readonly transactionDate = signal<string>(AddExpenseComponent.getLocalISOString());
+
   canSave(): boolean {
     // If it's a transfer, we don't strictly enforce category selection
     if (this.isTransfer() && this.amount() > 0) return true;
@@ -557,6 +613,7 @@ export class AddExpenseComponent {
     if (this.isTransfer()) return; // Don't change category manually if transfer is forced
     this.selectedCategory.set(id);
     this.selectedCategoryLabel.set(name);
+    Haptics.impact({ style: ImpactStyle.Light }).catch(() => { });
   }
 
   toggleTransfer(event: Event): void {
@@ -572,7 +629,12 @@ export class AddExpenseComponent {
   }
 
   onAmountChange(event: Event): void {
-    const val = parseFloat((event.target as HTMLInputElement).value) || 0;
+    let val = parseFloat((event.target as HTMLInputElement).value) || 0;
+    if (val < 0) {
+      val = 0;
+      (event.target as HTMLInputElement).value = '0';
+      this.notificationService.error('Amount cannot be negative');
+    }
     this.amount.set(val);
   }
 
@@ -591,7 +653,10 @@ export class AddExpenseComponent {
   }
 
   async save(): Promise<void> {
-    if (!this.canSave()) return;
+    if (!this.canSave()) {
+      this.notificationService.error('Please enter a valid amount and select a category');
+      return;
+    }
 
     await this.expenseService.addExpense({
       amount: this.amount(),
@@ -599,6 +664,8 @@ export class AddExpenseComponent {
       accountId: this.selectedAccountId() || undefined,
       type: 'debit', // Transfsers modelled as debits for simplicity or user should manually add credit
       notes: (this.isTransfer() ? '[Transfer] ' : '') + `[${this.selectedPaymentMode()}] ${this.note()}`,
+      date: this.transactionDate(),
+      timestampStr: new Date().getTime().toString()
     });
 
     if (this.pendingSmsId) {
@@ -607,7 +674,7 @@ export class AddExpenseComponent {
       history.replaceState({}, '');
     }
 
-    this.notificationService.success(`₹${this.amount()} expense saved!`);
+    Haptics.notification({ type: NotificationType.Success }).catch(() => { });
     this.router.navigate(['/tabs/dashboard']);
   }
 }

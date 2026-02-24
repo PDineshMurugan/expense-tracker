@@ -8,7 +8,13 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.content.ComponentName;
 import android.text.TextUtils;
+import android.webkit.JavascriptInterface;
 import com.getcapacitor.BridgeActivity;
+import android.content.ContentResolver;
+import android.database.Cursor;
+import android.provider.Telephony;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class MainActivity extends BridgeActivity {
 
@@ -19,14 +25,21 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         requestSmsPermission();
-        registerPlugin(NotificationSettingsPlugin.class);
+
+        // Inject Native Bridge Directly into WebView
+        getBridge().getWebView().addJavascriptInterface(new WebAppInterface(), "AndroidNative");
 
         notificationReceiver = new NotificationReceiver();
         android.content.IntentFilter filter = new android.content.IntentFilter("com.expensetracker.app.NOTIFICATION_LISTENER");
         registerReceiver(notificationReceiver, filter);
 
         if (!isNotificationServiceEnabled()) {
-            startActivity(new android.content.Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));
+            try {
+                startActivity(new android.content.Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));
+            } catch (Exception e) {
+                // Ignore if device does not support this direct intent
+                e.printStackTrace();
+            }
         }
     }
     
@@ -85,8 +98,58 @@ public class MainActivity extends BridgeActivity {
                 data.put("postTime", postTime);
                 
                 // Trigger window event: window.addEventListener('notificationReceived', (e) => ...)
-                getBridge().triggerWindowJSEvent("notificationReceived", data.toString());
+                if (getBridge() != null && getBridge().getWebView() != null) {
+                    getBridge().triggerWindowJSEvent("notificationReceived", data.toString());
+                }
             }
+        }
+    }
+
+    // Direct Native JS Interface
+    public class WebAppInterface {
+
+        @JavascriptInterface
+        public void openNotificationSettings() {
+            try {
+                android.content.Intent intent = new android.content.Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS");
+                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        @JavascriptInterface
+        public String getSmsMessages(int maxCount) {
+            JSONArray messages = new JSONArray();
+            try {
+                ContentResolver contentResolver = getContentResolver();
+                Cursor cursor = contentResolver.query(
+                        Telephony.Sms.Inbox.CONTENT_URI,
+                        new String[] { Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE },
+                        null,
+                        null,
+                        Telephony.Sms.DATE + " DESC LIMIT " + maxCount
+                );
+
+                if (cursor != null && cursor.moveToFirst()) {
+                    do {
+                        String address = cursor.getString(cursor.getColumnIndexOrThrow(Telephony.Sms.ADDRESS));
+                        String body = cursor.getString(cursor.getColumnIndexOrThrow(Telephony.Sms.BODY));
+                        long date = cursor.getLong(cursor.getColumnIndexOrThrow(Telephony.Sms.DATE));
+
+                        JSONObject msg = new JSONObject();
+                        msg.put("address", address);
+                        msg.put("body", body);
+                        msg.put("date", date);
+                        messages.put(msg);
+                    } while (cursor.moveToNext());
+                    cursor.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return messages.toString();
         }
     }
 }

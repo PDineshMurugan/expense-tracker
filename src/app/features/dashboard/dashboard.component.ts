@@ -2,7 +2,8 @@ import { Component, ChangeDetectionStrategy, inject, computed, signal } from '@a
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import {
-  IonContent, IonIcon, IonFab, IonFabButton
+  IonContent, IonIcon, IonFab, IonFabButton,
+  IonRefresher, IonRefresherContent, IonSkeletonText
 } from '@ionic/angular/standalone';
 import { ExpenseService } from '../../core/services/expense.service';
 import { BudgetService } from '../../core/services/budget.service';
@@ -26,10 +27,15 @@ import {
   imports: [
     CommonModule, RouterModule,
     IonContent, IonIcon, IonFab, IonFabButton,
+    IonRefresher, IonRefresherContent, IonSkeletonText,
     CurrencyPipe
   ],
   template: `
     <ion-content [fullscreen]="true">
+      <ion-refresher slot="fixed" (ionRefresh)="handleRefresh($event)">
+        <ion-refresher-content></ion-refresher-content>
+      </ion-refresher>
+
       <!-- Gradient Hero Header -->
       <div class="hero-section">
         <div class="hero-bg"></div>
@@ -49,7 +55,32 @@ import {
       </div>
 
       <div class="content-body">
-        <!-- Budget Warning -->
+        
+        @if (!expenseService.isLoaded()) {
+          <!-- Skeleton Loading State -->
+          <div class="kpi-row stagger-children">
+            <div class="glass-card kpi-card">
+              <ion-skeleton-text animated style="width: 40px; height: 40px; border-radius: var(--radius-sm);"></ion-skeleton-text>
+              <ion-skeleton-text animated style="width: 60%; margin-top: 8px;"></ion-skeleton-text>
+              <ion-skeleton-text animated style="width: 80%; height: 28px; margin-top: 4px;"></ion-skeleton-text>
+            </div>
+            <div class="glass-card kpi-card">
+              <ion-skeleton-text animated style="width: 40px; height: 40px; border-radius: var(--radius-sm);"></ion-skeleton-text>
+              <ion-skeleton-text animated style="width: 60%; margin-top: 8px;"></ion-skeleton-text>
+              <ion-skeleton-text animated style="width: 80%; height: 28px; margin-top: 4px;"></ion-skeleton-text>
+            </div>
+          </div>
+          
+          <div class="charts-row mt-4">
+            <div class="glass-card chart-card">
+              <ion-skeleton-text animated style="width: 40%; height: 20px; margin-bottom: 16px;"></ion-skeleton-text>
+              <ion-skeleton-text animated style="width: 100%; height: 40px; margin-bottom: 8px;"></ion-skeleton-text>
+              <ion-skeleton-text animated style="width: 100%; height: 40px; margin-bottom: 8px;"></ion-skeleton-text>
+              <ion-skeleton-text animated style="width: 100%; height: 40px;"></ion-skeleton-text>
+            </div>
+          </div>
+        } @else {
+          <!-- Budget Warning -->
         @if (budgetService.isWarningState()) {
           <div class="warning-banner">
             <ion-icon name="warning" style="vertical-align: middle; margin-right: 4px;"></ion-icon>
@@ -247,6 +278,7 @@ import {
             </div>
           }
         </div>
+        } <!-- End of Loaded State Content -->
       </div>
 
 
@@ -943,8 +975,12 @@ export class DashboardComponent {
     if (isNaN(d.getTime())) return '';
 
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const tzOffset = now.getTimezoneOffset() * 60000;
+    const localNow = new Date(now.getTime() - tzOffset);
+    const localD = new Date(d.getTime() - tzOffset);
+
+    const today = new Date(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate());
+    const target = new Date(localD.getUTCFullYear(), localD.getUTCMonth(), localD.getUTCDate());
     const diffDays = Math.floor((today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) return 'Today';
@@ -965,5 +1001,10 @@ export class DashboardComponent {
 
   getNote(expense: any): string {
     return expense.notes || '';
+  }
+
+  async handleRefresh(event: any) {
+    await this.expenseService.loadDashboardData();
+    event.target.complete();
   }
 }

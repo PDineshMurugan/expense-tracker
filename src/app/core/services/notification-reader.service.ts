@@ -1,22 +1,22 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { Platform } from '@ionic/angular/standalone';
-import { parseSMS, ParsedSMS } from '../utils/sms-parser.util';
+import { ParsedSMS } from '../sms/models/parsed-sms.model';
+import { SmsParserService } from '../sms/sms-parser.service';
+import { ExpenseService } from './expense.service';
 import { NotificationService } from './notification.service';
 import { registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Router } from '@angular/router';
 
-interface NotificationSettingsPlugin {
-    open(): Promise<void>;
-}
-
-const NotificationSettings = registerPlugin<NotificationSettingsPlugin>('NotificationSettings');
+// Legacy Capacitor Plugin Removed
 
 @Injectable({ providedIn: 'root' })
 export class NotificationReaderService {
     private platform = inject(Platform);
     private notificationService = inject(NotificationService);
+    private expenseService = inject(ExpenseService);
     private router = inject(Router);
+    private smsParserService = inject(SmsParserService);
 
     private _isEnabled = signal<boolean>(false);
     private _detectedTransactions = signal<ParsedSMS[]>([]);
@@ -79,7 +79,12 @@ export class NotificationReaderService {
             // Wait slightly so the user can read the toast
             await new Promise(resolve => setTimeout(resolve, 1500));
 
-            await NotificationSettings.open();
+            if ((window as any)?.AndroidNative?.openNotificationSettings) {
+                (window as any).AndroidNative.openNotificationSettings();
+            } else {
+                this.notificationService.error('Native bridge missing. Please recompile in Android Studio.');
+                return false;
+            }
 
             // We return true here and assume the user will enable it.
             // When they return to the app, the init logic will re-check enabling state.
@@ -114,11 +119,7 @@ export class NotificationReaderService {
                     actions: [
                         {
                             id: 'view',
-                            title: 'View SMS',
-                        },
-                        {
-                            id: 'add',
-                            title: 'Add Expense',
+                            title: 'View Transactions',
                         }
                     ]
                 }
@@ -126,17 +127,9 @@ export class NotificationReaderService {
         });
 
         LocalNotifications.addListener('localNotificationActionPerformed', (notificationAction) => {
-            if (notificationAction.actionId === 'add') {
-                const data = notificationAction.notification.extra;
-                if (data && data.amount) {
-                    this.router.navigate(['/tabs/add-expense'], {
-                        queryParams: {
-                            amount: data.amount,
-                            note: data.merchant || 'SMS Transaction',
-                            prefilled: true
-                        }
-                    });
-                }
+            if (notificationAction.actionId === 'view') {
+                // Navigate to dashboard or recent transactions when tapped
+                this.router.navigate(['/tabs/dashboard']);
             }
         });
     }
@@ -175,7 +168,7 @@ export class NotificationReaderService {
 
     private processNotification(notification: any) {
         const text = `${notification.title} ${notification.text}`;
-        const parsed = parseSMS(text, notification.title); // Re-use SMS parser
+        const parsed = this.smsParserService.processSMS(text, notification.title); // Re-use SMS parser
 
         if (parsed) {
             // Use native postTime if available
@@ -190,26 +183,44 @@ export class NotificationReaderService {
                 return newList;
             });
 
-            // Push Real Local Notification
-            if (this.platform.is('capacitor')) {
-                LocalNotifications.schedule({
-                    notifications: [
-                        {
-                            title: 'Transaction Detected',
-                            body: `Spent ₹${parsed.amount} at ${parsed.merchantName || 'Merchant'}`,
-                            id: new Date().getTime(),
-                            schedule: { at: new Date(Date.now() + 1000) },
-                            actionTypeId: 'TXN_ACTION',
-                            extra: {
-                                amount: parsed.amount,
-                                merchant: parsed.merchantName
+            // Auto-Add directly to ExpenseService
+            const tzOffset = parsed.date.getTimezoneOffset() * 60000;
+            const localISO = new Date(parsed.date.getTime() - tzOffset).toISOString().split('T')[0];
+
+            this.expenseService.addExpense({
+                amount: parsed.amount,
+                date: localISO,
+                type: parsed.type,
+                merchantName: parsed.merchantName || parsed.sender,
+                notes: `[Auto-Detect] ${parsed.merchantName || parsed.sender}`,
+                categoryId: parsed.isTransfer ? 'transfer' : 'unknown',
+                source: 'sms', // Represents auto-imported
+                timestampStr: parsed.date.getTime().toString()
+            }).then(() => {
+                // Push Real Local Notification confirming background save
+                if (this.platform.is('capacitor')) {
+                    LocalNotifications.schedule({
+                        notifications: [
+                            {
+                                title: 'Auto-Saved Transaction',
+                                body: `Saved ₹${parsed.amount} at ${parsed.merchantName || 'Merchant'}`,
+                                id: new Date().getTime(),
+                                schedule: { at: new Date(Date.now() + 1000) },
+                                actionTypeId: 'TXN_ACTION',
+                                extra: {
+                                    amount: parsed.amount,
+                                    merchant: parsed.merchantName,
+                                    date: localISO
+                                }
                             }
-                        }
-                    ]
-                });
-            } else {
-                this.notificationService.success(`Transaction detected: ${parsed.amount}`);
-            }
+                        ]
+                    });
+                } else {
+                    this.notificationService.success(`Auto-saved notification: ${parsed.amount}`);
+                }
+            }).catch(e => {
+                console.error("Failed to auto-save transaction from notification", e);
+            });
         }
     }
 

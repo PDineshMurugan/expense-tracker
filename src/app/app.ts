@@ -6,12 +6,11 @@ import { ThemeService } from './core/services/theme.service';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [IonApp, IonRouterOutlet, NotificationToastComponent],
+  imports: [IonApp, IonRouterOutlet],
   template: `
     <ion-app>
       <ion-router-outlet></ion-router-outlet>
     </ion-app>
-    <app-notification-toast></app-notification-toast>
   `,
   styles: [`:host { display: block; }`]
 })

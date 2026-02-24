@@ -1,6 +1,10 @@
 import { Injectable, signal } from '@angular/core';
-import { ParsedSMS, parseSMS } from '../utils/sms-parser.util';
+import { ParsedSMS } from '../sms/models/parsed-sms.model';
+import { SmsParserService } from '../sms/sms-parser.service';
 import { NotificationService } from './notification.service';
+import { registerPlugin } from '@capacitor/core';
+
+// Legacy Capacitor Plugin import removed
 
 @Injectable({ providedIn: 'root' })
 export class SmsService {
@@ -20,7 +24,10 @@ export class SmsService {
     readonly totalMessagesToScan = this._totalMessagesToScan.asReadonly();
     readonly messagesScanned = this._messagesScanned.asReadonly();
 
-    constructor(private notificationService: NotificationService) {
+    constructor(
+        private notificationService: NotificationService,
+        private smsParserService: SmsParserService
+    ) {
         // Load persistent enabled state
         const saved = localStorage.getItem('sms-enabled');
         if (saved === 'true') {
@@ -117,10 +124,10 @@ export class SmsService {
                 const msg = messagesToScan[i];
                 try {
                     const sender = (msg as any).address || (msg as any).sender || (msg as any).from;
-                    const p = parseSMS(msg.body, sender as string | undefined);
+                    const p = this.smsParserService.processSMS(msg.body, sender as string | undefined);
 
                     if (p) {
-                        p.sender = (sender as string) || p.sender;
+                        if (!p.sender) p.sender = (sender as string);
                         if (msg.date) p.date = msg.date;
 
                         // Create unique fingerprint for deduping
@@ -197,6 +204,19 @@ export class SmsService {
         return this._smsExpenses().length;
     }
 
+    getBankUI(bankName: string) {
+        const lower = bankName.toLowerCase();
+        if (lower.includes('hdfc')) return { icon: 'business', color: '#1d4ed8' }; // blue
+        if (lower.includes('sbi')) return { icon: 'business', color: '#0369a1' }; // light blue
+        if (lower.includes('icici')) return { icon: 'business', color: '#b91c1c' }; // red
+        if (lower.includes('axis')) return { icon: 'business', color: '#831843' }; // burgundy
+        if (lower.includes('indbnk') || lower.includes('indian')) return { icon: 'business', color: '#c2410c' }; // orange
+        if (lower.includes('kotak')) return { icon: 'business', color: '#dc2626' }; // red
+        if (lower.includes('pnb')) return { icon: 'business', color: '#f59e0b' }; // yellow
+        if (lower.includes('paytm')) return { icon: 'wallet', color: '#002970' }; // dark blue
+        return { icon: 'card-outline', color: '#6366f1' }; // default indigo
+    }
+
     // 2. Group by Sender (Bank/Wallet)
     getSenderSummary() {
         const expenses = this._smsExpenses();
@@ -211,7 +231,12 @@ export class SmsService {
         }
 
         return Array.from(map.entries())
-            .map(([name, data]) => ({ name, total: data.total, count: data.count }))
+            .map(([name, data]) => ({
+                name,
+                total: data.total,
+                count: data.count,
+                ui: this.getBankUI(name)
+            }))
             .sort((a, b) => b.total - a.total);
     }
 
@@ -290,60 +315,39 @@ export class SmsService {
             throw new Error('Native platform required for SMS access.');
         }
 
-        // 1. Try Cordova SMS Plugin
-        const cordovaSMS = (window as any)?.SMS;
-        if (cordovaSMS && typeof cordovaSMS.listSMS === 'function') {
-            try {
-                const results = await new Promise<any[]>((resolve, reject) => {
-                    cordovaSMS.listSMS(
-                        { box: 'inbox', maxCount: 2000 },
-                        (data: any) => resolve(data),
-                        (err: any) => reject(err)
-                    );
-                });
-
-                if (Array.isArray(results)) {
-                    return results.map(item => ({
-                        body: item.body || '',
-                        address: item.address || item.from || '',
-                        date: item.date ? new Date(Number(item.date)) : undefined
-                    })).filter(m => m.body);
-                }
-            } catch (e) {
-                console.warn('[SmsService] Cordova listSMS failed, trying Capacitor fallbacks');
+        try {
+            const hasPerms = await this.requestSmsPermission();
+            if (!hasPerms) {
+                throw new Error('Permission denied.');
             }
-        }
 
-        // 2. Try Capacitor Plugin Fallbacks
-        const plugins = cap?.Plugins || {};
-        const candidates = ['listSMS', 'getMessages', 'getAll', 'getInbox', 'list', 'getSmsList'];
-
-        for (const pluginName of Object.keys(plugins)) {
-            const plugin = plugins[pluginName];
-            for (const method of candidates) {
-                if (plugin && typeof plugin[method] === 'function') {
-                    try {
-                        const res = await plugin[method]({ box: 'inbox', maxCount: 1000 });
-                        const arr = Array.isArray(res) ? res : (res?.messages || res?.data || res?.sms || []);
-                        if (arr.length > 0) {
-                            return arr.map((item: any) => ({
-                                body: item.body || item.message || item.text || '',
-                                address: item.address || item.from || item.sender || '',
-                                date: item.date ? new Date(Number(item.date)) : undefined
-                            })).filter((m: any) => m.body);
-                        }
-                    } catch (e) { }
-                }
+            if (!(window as any)?.AndroidNative?.getSmsMessages) {
+                throw new Error('Native SmsReader bridge not found. Did you recompile in Android Studio?');
             }
-        }
 
-        throw new Error('No compatible SMS plugin found or permission missing.');
+            // The native method returns a JSON string, so we must parse it
+            const rawJson = (window as any).AndroidNative.getSmsMessages(2000);
+            const messages = JSON.parse(rawJson || '[]');
+
+            return messages.map((item: any) => ({
+                body: item.body || item.message || item.text || '',
+                address: item.address || item.from || item.sender || '',
+                date: item.date ? new Date(Number(item.date)) : undefined
+            })).filter((m: any) => m.body);
+
+        } catch (e: any) {
+            console.error('[SmsService] Custom SmsReader plugin failure:', e);
+            this.notificationService.error('SMS Plugin Error: ' + (e?.message || e));
+            throw new Error('No compatible SMS plugin found or permission missing.');
+        }
     }
 
     private async requestSmsPermission(): Promise<boolean> {
         const cap = (window as any)?.Capacitor;
         if (!cap?.isNativePlatform?.()) return true;
 
+        // Note: With JavascriptInterface, permissions must be handled by standard Capacitor plugins
+        // or the Permission API. Since we removed SmsReader cap plugin, we rely solely on standard Permissions
         const Permissions = cap?.Plugins?.Permissions;
         if (!Permissions) return true;
 

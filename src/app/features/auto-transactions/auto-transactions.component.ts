@@ -8,11 +8,11 @@ import { addIcons } from 'ionicons';
 import { phonePortraitOutline, business, arrowForwardOutline, cardOutline } from 'ionicons/icons';
 
 @Component({
-    selector: 'app-auto-transactions',
-    standalone: true,
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [CommonModule, RouterModule, IonContent, IonHeader, IonToolbar, IonTitle, IonBackButton, IonButtons, IonIcon, CurrencyPipe],
-    template: `
+  selector: 'app-auto-transactions',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [CommonModule, RouterModule, IonContent, IonHeader, IonToolbar, IonTitle, IonBackButton, IonButtons, IonIcon, CurrencyPipe],
+  template: `
     <ion-header class="ion-no-border">
       <ion-toolbar class="glass-header">
         <ion-buttons slot="start">
@@ -34,8 +34,8 @@ import { phonePortraitOutline, business, arrowForwardOutline, cardOutline } from
                    [style.animation-delay]="(i * 50) + 'ms'"
                    (click)="goToSender(sender.name)">
                 <div class="sender-card__top">
-                  <div class="sender-card__icon">
-                    <ion-icon name="business"></ion-icon>
+                  <div class="sender-card__icon" [style.color]="sender.ui.color" [style.backgroundColor]="sender.ui.color + '20'">
+                    <ion-icon [name]="sender.ui.icon"></ion-icon>
                   </div>
                   <span class="sender-card__name">{{ sender.name }}</span>
                 </div>
@@ -79,7 +79,7 @@ import { phonePortraitOutline, business, arrowForwardOutline, cardOutline } from
       </div>
     </ion-content>
   `,
-    styles: [`
+  styles: [`
     .page-container {
       padding: 0 0 var(--spacing-2xl) 0;
     }
@@ -246,21 +246,21 @@ import { phonePortraitOutline, business, arrowForwardOutline, cardOutline } from
   `]
 })
 export class AutoTransactionsComponent {
-    protected readonly smsService = inject(SmsService);
-    private readonly router = inject(Router);
+  protected readonly smsService = inject(SmsService);
+  private readonly router = inject(Router);
 
-    readonly senderSummary = computed(() => this.smsService.getSenderSummary());
-    readonly topMerchants = computed(() => this.smsService.getTopMerchants());
+  readonly senderSummary = computed(() => this.smsService.getSenderSummary());
+  readonly topMerchants = computed(() => this.smsService.getTopMerchants());
 
-    constructor() {
-        addIcons({ phonePortraitOutline, business, arrowForwardOutline, cardOutline });
-    }
+  constructor() {
+    addIcons({ phonePortraitOutline, business, arrowForwardOutline, cardOutline });
+  }
 
-    goToSender(sender: string) {
-        this.router.navigate(['/tabs/auto-transactions/sender', encodeURIComponent(sender)]);
-    }
+  goToSender(sender: string) {
+    this.router.navigate(['/tabs/auto-transactions/sender', encodeURIComponent(sender)]);
+  }
 
-    goToMerchant(merchant: string) {
-        this.router.navigate(['/tabs/auto-transactions/merchant', encodeURIComponent(merchant)]);
-    }
+  goToMerchant(merchant: string) {
+    this.router.navigate(['/tabs/auto-transactions/merchant', encodeURIComponent(merchant)]);
+  }
 }

@@ -12,16 +12,21 @@ public class NotificationListener extends NotificationListenerService {
         String title = "";
         String text = "";
 
-        if (sbn.getNotification().extras.containsKey("android.title")) {
-            title = sbn.getNotification().extras.getString("android.title");
+        android.os.Bundle extras = sbn.getNotification().extras;
+        if (extras != null) {
+            if (extras.containsKey("android.title")) {
+                CharSequence titleSeq = extras.getCharSequence("android.title");
+                if (titleSeq != null) title = titleSeq.toString();
+            }
+            
+            if (extras.containsKey("android.text")) {
+                CharSequence textSeq = extras.getCharSequence("android.text");
+                if (textSeq != null) text = textSeq.toString();
+            }
         }
-        
-        if (sbn.getNotification().extras.containsKey("android.text")) {
-             CharSequence textCharSeq = sbn.getNotification().extras.getCharSequence("android.text");
-             if (textCharSeq != null) {
-                 text = textCharSeq.toString();
-             }
-        }
+
+        if (title == null) title = "";
+        if (text == null) text = "";
 
         if (!title.isEmpty() || !text.isEmpty()) {
             Intent intent = new Intent("com.expensetracker.app.NOTIFICATION_LISTENER");

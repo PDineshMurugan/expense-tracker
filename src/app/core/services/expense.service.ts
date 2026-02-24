@@ -7,6 +7,9 @@ import { CryptoService } from '../crypto/crypto.service';
 export class ExpenseService {
 
     // --- DASHBOARD SIGNALS ---
+    private _isLoaded = signal<boolean>(false);
+    readonly isLoaded = this._isLoaded.asReadonly();
+
     private _monthlyTotal = signal<number>(0);
     readonly monthlyTotal = this._monthlyTotal.asReadonly();
 
@@ -39,8 +42,10 @@ export class ExpenseService {
         const db = await this.storage.ready();
 
         const now = new Date();
-        const monthPrefix = now.toISOString().substring(0, 7); // YYYY-MM
-        const todayStr = now.toISOString().split('T')[0];
+        const tzOffset = now.getTimezoneOffset() * 60000;
+        const localISO = new Date(now.getTime() - tzOffset).toISOString();
+        const monthPrefix = localISO.substring(0, 7); // YYYY-MM
+        const todayStr = localISO.split('T')[0];
 
         // 1. Monthly Total
         const summaryStore = db.transaction('monthlySummaries', 'readonly').objectStore('monthlySummaries');
@@ -92,6 +97,8 @@ export class ExpenseService {
         // Trend
         const trendArr = Array.from(trendMap.entries()).map(([date, total]) => ({ date, total }));
         this._last7DaysTrend.set(trendArr);
+
+        this._isLoaded.set(true);
     }
 
     /**
@@ -142,16 +149,19 @@ export class ExpenseService {
         return results;
     }
 
-    /**
-     * Add expense and incrementally update dependent state (Account Balance, MonthlySummery)
-     */
     async addExpense(expenseData: Partial<Expense> & {
         merchantName?: string,
         accountIdentifier?: string,
         notes?: string,
-        rawSms?: string
+        rawSms?: string,
+        timestampStr?: string // Injectable ID prefix
     }): Promise<void> {
-        const now = new Date().toISOString();
+        const now = new Date();
+        const tzOffset = now.getTimezoneOffset() * 60000;
+        const localISO = new Date(now.getTime() - tzOffset).toISOString();
+
+        // Sorting Prefix (Allows tying the ID to the date instead of pure randomness)
+        const idPrefix = expenseData.timestampStr || now.getTime().toString();
 
         const payloadData = {
             merchantName: expenseData.merchantName,
@@ -163,17 +173,17 @@ export class ExpenseService {
         const encryptedPayload = await this.crypto.encrypt(payloadData);
 
         const expense: Expense = {
-            id: crypto.randomUUID(),
+            id: `${idPrefix}-${crypto.randomUUID()}`,
             amount: expenseData.amount || 0,
-            date: expenseData.date || now.split('T')[0],
+            date: expenseData.date || localISO.split('T')[0],
             type: expenseData.type || 'debit',
             categoryId: expenseData.categoryId || 'unknown',
             accountId: expenseData.accountId || 'unknown',
             source: expenseData.source || 'manual',
             parserVersion: expenseData.parserVersion || 1,
             encryptedPayload,
-            createdAt: now,
-            updatedAt: now
+            createdAt: localISO,
+            updatedAt: localISO
         };
 
         const db = await this.storage.ready();
@@ -190,7 +200,7 @@ export class ExpenseService {
                 } else {
                     account.balance += expense.amount;
                 }
-                account.updatedAt = now;
+                account.updatedAt = localISO;
                 await accountStore.put(account);
             }
 
