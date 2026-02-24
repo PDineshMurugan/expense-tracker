@@ -1,0 +1,67 @@
+<ion-content [fullscreen]="true" class="categories-content">
+  <div class="header-simple">
+    <h2>Categories</h2>
+    <div style="width: 48px;"></div>
+  </div>
+
+  <div class="categories-container animate-fade-in">
+
+    <!-- Add New Category -->
+    @if (isAdding()) {
+      <div class="glass-card add-form animate-fade-in-up">
+        <h3 class="form-title">New Category</h3>
+        <div class="form-row">
+          <div class="icon-input-wrap">
+            <ion-icon [name]="newIcon() || 'help-outline'" class="preview-icon"></ion-icon>
+          </div>
+          <div class="input-group">
+            <input
+              type="text"
+              class="custom-input"
+              placeholder="Icon name (e.g. pizza)"
+              [value]="newIcon()"
+              (input)="newIcon.set(getInputValue($event))"
+              id="new-icon-input" />
+            <input
+              type="text"
+              class="custom-input"
+              placeholder="Category label"
+              [value]="newLabel()"
+              (input)="newLabel.set(getInputValue($event))"
+              id="new-label-input" />
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn--ghost" (click)="cancelAdd()">Cancel</button>
+          <button class="btn btn--gradient" (click)="addCategory()" [disabled]="!canAdd()" id="add-category-btn">Add</button>
+        </div>
+      </div>
+    } @else {
+      <button class="add-category-btn animate-fade-in" (click)="isAdding.set(true)" id="show-add-btn">
+        <div class="add-category-btn__icon">
+          <ion-icon name="add"></ion-icon>
+        </div>
+        <span>Add Category</span>
+      </button>
+    }
+
+    <!-- Category List -->
+    <div class="category-list stagger-children">
+      @for (cat of categoryService.categories(); track cat.id) {
+        <div class="glass-card category-card">
+          <div class="category-color-bar" [style.background]="cat.color || 'var(--color-primary)'"></div>
+          <div class="category-row">
+            <div class="category-icon-wrap">
+              <ion-icon [name]="cat.icon" class="category-icon"></ion-icon>
+            </div>
+            <span class="category-label">{{ cat.name }}</span>
+            <button class="delete-btn" (click)="deleteCategory(cat.id)" [attr.id]="'delete-' + cat.id">
+              <ion-icon name="trash-outline" class="delete-icon"></ion-icon>
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+
+  </div>
+</ion-content>

@@ -1,0 +1,184 @@
+.categories-content {
+    --background: var(--color-background);
+}
+
+.categories-container {
+    padding: var(--spacing-md) var(--spacing-lg) calc(var(--spacing-3xl) * 2);
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+/* Add Button */
+.add-category-btn {
+    width: 100%;
+    padding: var(--spacing-md);
+    border: 2px dashed rgba(var(--color-primary-rgb), 0.3);
+    border-radius: var(--radius-lg);
+    background: rgba(var(--color-primary-rgb), 0.02);
+    color: var(--color-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    transition: all var(--transition-spring);
+
+    &:hover,
+    &:active {
+        border-color: var(--color-primary);
+        background: rgba(var(--color-primary-rgb), 0.08);
+        transform: scale(0.98);
+    }
+
+    &__icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--gradient-primary);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        box-shadow: 0 4px 10px rgba(var(--color-primary-rgb), 0.3);
+    }
+}
+
+/* Add Form */
+.add-form {
+    padding: var(--spacing-lg);
+}
+
+.form-title {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 var(--spacing-md) 0;
+}
+
+.form-row {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.icon-input-wrap {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-surface-alt);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+
+    .preview-icon {
+        font-size: 1.75rem;
+        color: var(--color-primary);
+    }
+}
+
+.input-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.form-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: flex-end;
+}
+
+/* Category List */
+.category-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.category-card {
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    transition: transform 0.2s ease;
+
+    &:hover {
+        transform: translateY(-1px);
+    }
+}
+
+.category-color-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: var(--radius) 0 0 var(--radius);
+}
+
+.category-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    padding-left: calc(var(--spacing-md) + 6px);
+}
+
+.category-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    background: rgba(var(--color-surface-alt-rgb), 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    .category-icon {
+        font-size: 1.5rem;
+        color: var(--color-text);
+        opacity: 0.9;
+    }
+}
+
+.category-label {
+    flex: 1;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+    font-size: var(--font-size-base);
+}
+
+.delete-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: rgba(var(--color-danger-rgb), 0.15);
+        color: var(--color-danger);
+        transform: scale(1.05);
+    }
+
+    .delete-icon {
+        font-size: 1.25rem;
+    }
+}

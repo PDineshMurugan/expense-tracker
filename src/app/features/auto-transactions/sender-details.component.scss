@@ -1,0 +1,173 @@
+.sender-details-content {
+    --background: var(--color-background);
+}
+
+.header-simple {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    z-index: 10;
+    color: white;
+
+    h2 {
+        color: white;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 60%;
+        text-align: center;
+    }
+
+    .custom-back-btn {
+        --color: white;
+    }
+}
+
+.page-container {
+    padding: 0 0 var(--spacing-2xl) 0;
+}
+
+.summary-header {
+    padding: calc(var(--spacing-3xl) + env(safe-area-inset-top)) var(--spacing-md) var(--spacing-xl);
+    text-align: center;
+    background: var(--gradient-primary);
+    color: white;
+    border-bottom-left-radius: var(--radius-xl);
+    border-bottom-right-radius: var(--radius-xl);
+    margin-bottom: var(--spacing-lg);
+    box-shadow: 0 8px 20px rgba(var(--color-primary-rgb), 0.25);
+    position: relative;
+    z-index: 1;
+}
+
+.summary-total {
+    font-size: 2.75rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+}
+
+.summary-count {
+    font-size: var(--font-size-sm);
+    opacity: 0.9;
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+.filter-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+}
+
+.filter-icon {
+    font-size: 1.25rem;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+}
+
+.section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.section-title {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 var(--spacing-lg) var(--spacing-md) var(--spacing-lg);
+}
+
+/* Merchants List */
+.merchant-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    padding: 0 var(--spacing-lg);
+}
+
+.merchant-row {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    gap: var(--spacing-md);
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+
+    &:hover {
+        background: rgba(var(--color-surface-alt-rgb), 0.5);
+        transform: translateX(2px);
+    }
+
+    &:active {
+        transform: scale(0.98);
+    }
+}
+
+.merchant-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-full);
+    background: rgba(var(--color-surface-alt-rgb), 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-secondary);
+    font-size: 1.25rem;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.merchant-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+}
+
+.merchant-name {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.merchant-count {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+.merchant-total {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.merchant-amount {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-danger);
+}
+
+.merchant-arrow {
+    color: var(--color-text-secondary);
+    font-size: 1.2rem;
+    opacity: 0.5;
+}
+
+.empty-text {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    padding: var(--spacing-xl) var(--spacing-md);
+    text-align: center;
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+}

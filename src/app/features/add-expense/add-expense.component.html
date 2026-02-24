@@ -1,0 +1,147 @@
+<ion-content [fullscreen]="true" class="add-expense-content">
+  <div class="header-simple">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/dashboard" class="custom-back-btn" text="" icon="chevron-back-outline"></ion-back-button>
+    </ion-buttons>
+    <h2>Add Expense</h2>
+    <div style="width: 48px;"></div>
+  </div>
+
+  <div class="add-expense-container animate-fade-in">
+    <!-- Amount Input -->
+    <div class="amount-card">
+      <div class="amount-input-section">
+        <span class="currency-symbol">₹</span>
+        <input
+          type="number"
+          class="amount-input"
+          placeholder="0"
+          [value]="amount()"
+          (input)="onAmountChange($event)"
+          inputmode="decimal"
+          min="0"
+          autofocus
+          id="amount-input" />
+      </div>
+      <div class="amount-underline">
+        <div class="amount-underline__fill" [class.amount-underline__fill--active]="amount() > 0"></div>
+      </div>
+    </div>
+
+    <!-- Account Selection & Transfer Toggle -->
+    @if (accountService.accounts().length > 0) {
+      <section class="form-section animate-fade-in-up">
+        <div class="section-header-simple">
+          <h3>Account details</h3>
+        </div>
+        
+        <div class="form-card">
+          <div class="input-row">
+            <span class="input-label">Account</span>
+            <select class="custom-select" [ngModel]="selectedAccountId()" (ngModelChange)="selectedAccountId.set($event)">
+              <option value="">No Account</option>
+              @for (acc of accountService.accounts(); track acc.id) {
+                <option [value]="acc.id">{{ acc.name }} ({{ acc.accountIdentifier }})</option>
+              }
+            </select>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <div class="input-row">
+            <label class="input-label transfer-label">
+              <ion-icon name="swap-horizontal"></ion-icon>
+              Is Transfer?
+            </label>
+            <div class="custom-toggle">
+              <input type="checkbox" [checked]="isTransfer()" (change)="toggleTransfer($event)" id="transfer-toggle" />
+              <div class="toggle-track">
+                <div class="toggle-thumb"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    }
+
+    <!-- Date Picker -->
+    <section class="form-section">
+      <div class="section-header-simple">
+        <h3>Date</h3>
+      </div>
+      <div class="form-card date-card">
+        <input type="date" class="custom-date-input" [ngModel]="transactionDate()" (ngModelChange)="transactionDate.set($event)" id="expense-date" />
+      </div>
+    </section>
+
+    <!-- Category Grid -->
+    <section class="form-section">
+      <div class="section-header-simple">
+        <h3>Category</h3>
+      </div>
+      <div class="category-grid stagger-children">
+        @for (cat of categoryService.categories(); track cat.id) {
+          <button
+            class="category-pill"
+            [class.category-pill--selected]="selectedCategory() === cat.id"
+            (click)="selectCategory(cat.id, cat.name)"
+            [attr.id]="'cat-' + cat.id">
+            <div class="icon-wrapper">
+              <ion-icon [name]="cat.icon" class="category-pill__icon"></ion-icon>
+            </div>
+            <span class="category-pill__name">{{ cat.name }}</span>
+          </button>
+        }
+      </div>
+    </section>
+
+    <!-- Payment Mode -->
+    <section class="form-section">
+      <div class="section-header-simple">
+        <h3>Payment method</h3>
+      </div>
+      <div class="payment-modes form-card p-sm">
+        @for (mode of paymentModes; track mode) {
+          <button
+            class="payment-chip"
+            [class.payment-chip--selected]="selectedPaymentMode() === mode"
+            (click)="selectedPaymentMode.set(mode)"
+            [attr.id]="'pay-' + mode">
+            <ion-icon [name]="getPaymentIcon(mode)" class="payment-chip__icon"></ion-icon>
+            {{ mode }}
+          </button>
+        }
+      </div>
+    </section>
+
+    <!-- Note -->
+    <section class="form-section">
+      <div class="section-header-simple">
+        <h3>Note</h3>
+      </div>
+      <div class="form-card note-card">
+        <ion-icon name="create-outline" class="note-icon"></ion-icon>
+        <input
+          type="text"
+          class="custom-text-input"
+          placeholder="What was this for? (optional)"
+          [value]="note()"
+          (input)="onNoteChange($event)"
+          id="note-input" />
+      </div>
+    </section>
+
+    <!-- Save Button -->
+    <div class="action-footer">
+      <button
+        class="main-action-btn"
+        [disabled]="!canSave()"
+        [class.ready]="canSave()"
+        (click)="save()"
+        id="save-btn">
+        <span class="btn-text">Save Expense</span>
+      </button>
+    </div>
+
+  </div>
+</ion-content>

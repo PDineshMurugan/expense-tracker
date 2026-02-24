@@ -1,0 +1,84 @@
+<ion-content [fullscreen]="true" class="accounts-content">
+  <div class="header-simple">
+    <ion-buttons>
+      <ion-back-button defaultHref="/tabs/settings" class="custom-back-btn"></ion-back-button>
+    </ion-buttons>
+    <h2>Accounts & Cards</h2>
+    <div style="width: 48px;"></div>
+  </div>
+
+  <div class="accounts-container animate-fade-in">
+    <!-- Add New Account Form -->
+    <div class="glass-card new-account-card">
+      <h3 class="form-title">Add New Account</h3>
+      
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" [value]="newName()" (input)="newName.set($any($event.target).value)" placeholder="e.g. HDFC Salary, SBI Credit Card" class="custom-input" />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group" style="flex: 1;">
+          <label>Type</label>
+          <div class="select-wrapper">
+            <select [value]="newType()" (change)="newType.set($any($event.target).value)" class="custom-select">
+              <option value="bank">Bank Account</option>
+              <option value="cash">Cash/Card</option>
+              <option value="wallet">Wallet</option>
+            </select>
+            <ion-icon name="chevron-down-outline" class="select-icon"></ion-icon>
+          </div>
+        </div>
+        
+        <div class="form-group" style="flex: 1;">
+          <label>Identifier (optional)</label>
+          <input type="text" [value]="newIdentifier()" (input)="newIdentifier.set($any($event.target).value)" placeholder="e.g. *6493" class="custom-input" />
+        </div>
+      </div>
+
+      <button class="btn btn--gradient add-btn" (click)="addAccount()" [disabled]="!canAdd()">
+        <ion-icon name="add-circle" class="btn-icon"></ion-icon>
+        Add Account
+      </button>
+    </div>
+
+    <!-- Existing Accounts List -->
+    <div class="accounts-list stagger-children">
+      @for (acc of accountService.accounts(); track acc.id) {
+        <div class="glass-card account-item animate-fade-in-up">
+          <div class="account-icon-wrap" [ngClass]="acc.type.toLowerCase().replace(' ', '-')">
+            <ion-icon [name]="getAccountIcon(acc.type)" class="account-icon"></ion-icon>
+          </div>
+          
+          <div class="account-info">
+            <div class="account-title-row">
+              <span class="account-name">{{ acc.name }}</span>
+              <span class="account-type-badge">{{ acc.type }}</span>
+            </div>
+            <div class="account-meta">
+              <span class="account-identifier">{{ acc.accountIdentifier || 'No Identifier' }}</span>
+              <span class="account-spent">Monthly Spent: <strong class="spent-value">{{ expenseService.monthlyTotalByAccount(acc.id) | currency }}</strong></span>
+            </div>
+          </div>
+
+          <div class="account-actions">
+            <button class="delete-btn" (click)="deleteAccount(acc.id)">
+              <ion-icon name="trash-outline" class="delete-icon"></ion-icon>
+            </button>
+          </div>
+        </div>
+      }
+
+      @if (accountService.accounts().length === 0) {
+        <div class="empty-state glass-card">
+          <div class="icon-circle">
+            <ion-icon name="wallet-outline"></ion-icon>
+          </div>
+          <p>No accounts added yet.</p>
+          <small>Add bank accounts or credit cards to track expenses per account.</small>
+        </div>
+      }
+    </div>
+
+  </div>
+</ion-content>

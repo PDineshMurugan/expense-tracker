@@ -1,0 +1,50 @@
+<ion-content [fullscreen]="true" class="sender-details-content">
+  <!-- Simple Header overlapping background -->
+  <div class="header-simple">
+    <ion-buttons>
+      <ion-back-button defaultHref="/tabs/auto-transactions" class="custom-back-btn"></ion-back-button>
+    </ion-buttons>
+    <h2>{{ senderName() }}</h2>
+    <div style="width: 48px;"></div>
+  </div>
+
+  <div class="page-container animate-fade-in">
+    <!-- Summary Header -->
+    <div class="summary-header">
+      <div class="summary-total">{{ totalAmount() | currency }}</div>
+      <div class="summary-count">{{ totalTransactions() }} Transactions</div>
+    </div>
+
+    <!-- Filter Row (UI Only for now) -->
+    <div class="filter-row">
+      <span class="filter-label">Sort By: Highest Amount</span>
+      <ion-icon name="filter-outline" class="filter-icon"></ion-icon>
+    </div>
+
+    <!-- Merchant List for this Sender -->
+    <section class="section">
+      <h2 class="section-title">Merchants</h2>
+      <div class="merchant-list stagger-children">
+        @for (merchant of merchants(); track merchant.originalName) {
+          <div class="glass-card merchant-row" (click)="goToMerchant(merchant.originalName)">
+            <div class="merchant-icon-wrap">
+              <ion-icon name="card-outline"></ion-icon>
+            </div>
+            <div class="merchant-info">
+              <span class="merchant-name">{{ merchant.originalName }}</span>
+              <span class="merchant-count">{{ merchant.count }} transactions</span>
+            </div>
+            <div class="merchant-total">
+              <span class="merchant-amount">{{ merchant.total | currency }}</span>
+              <ion-icon name="arrow-forward-outline" class="merchant-arrow"></ion-icon>
+            </div>
+          </div>
+        }
+        @if (merchants().length === 0) {
+          <p class="empty-text">No merchants detected for this sender.</p>
+        }
+      </div>
+    </section>
+
+  </div>
+</ion-content>

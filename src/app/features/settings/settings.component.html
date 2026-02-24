@@ -1,0 +1,212 @@
+<ion-content [fullscreen]="true" class="settings-content">
+  <div class="header-simple">
+    <h2>Settings</h2>
+    <div style="width: 48px;"></div>
+  </div>
+
+  <div class="settings-container animate-fade-in">
+
+    <!-- Budget -->
+    <div class="glass-card settings-section">
+      <div class="section-header">
+        <ion-icon name="cash" class="section-icon"></ion-icon>
+        <h3 class="section-title">Monthly Budget</h3>
+      </div>
+      <div class="budget-input-row">
+        <span class="currency-label">₹</span>
+        <input
+          type="number"
+          class="budget-input"
+          [value]="budgetInput()"
+          (input)="onBudgetInput($event)"
+          placeholder="Set your monthly budget"
+          inputmode="numeric"
+          id="budget-input" />
+        <button class="btn btn--gradient" (click)="saveBudget()" id="save-budget-btn">
+          Save
+        </button>
+      </div>
+      @if (budgetService.monthlyBudget() > 0) {
+        <div class="budget-status">
+          <span class="stat-pill">Limit: {{ budgetService.monthlyBudget() | currency }}</span>
+          <span class="stat-pill highlight">Used: {{ budgetService.budgetUsagePercent() }}%</span>
+        </div>
+      }
+    </div>
+
+    <!-- SMS Auto-Read -->
+    <div class="glass-card settings-section">
+      <div class="section-header">
+        <ion-icon name="phone-portrait" class="section-icon"></ion-icon>
+        <h3 class="section-title">SMS Auto-Read</h3>
+      </div>
+      <p class="section-desc">Automatically detect expenses from bank SMS messages</p>
+
+      <div class="toggle-row" id="sms-toggle">
+        <div class="toggle-info">
+          <span class="toggle-label">Enable SMS Reading</span>
+          @if (smsService.smsEnabled()) {
+            <span class="status-badge status-badge--active">Active</span>
+          }
+        </div>
+        <button
+          class="toggle-switch"
+          [class.toggle-switch--on]="smsService.smsEnabled()"
+          (click)="toggleSms()"
+          [disabled]="smsService.isScanning()">
+          <span class="toggle-switch__knob"></span>
+        </button>
+      </div>
+
+      @if (smsService.smsEnabled()) {
+        <button class="scan-btn" (click)="scanSms()" [disabled]="smsService.isScanning()" id="scan-sms-btn">
+          @if (smsService.isScanning()) {
+              <span class="scan-btn__spinner"></span>
+              <span>Scanning...</span>
+          } @else {
+            <ion-icon name="search" class="scan-btn__icon"></ion-icon>
+            <span>Scan SMS Now</span>
+          }
+        </button>
+
+          @if (smsService.isScanning()) {
+            <div class="scan-progress">
+              <div class="scan-progress__meta">
+                Scanned {{ smsService.messagesScanned() }} of {{ smsService.totalMessagesToScan() }} messages
+              </div>
+              <div class="scan-progress__bar">
+                <div class="scan-progress__fill" [style.width.%]="smsService.totalMessagesToScan() ? (smsService.messagesScanned() / smsService.totalMessagesToScan()) * 100 : 0"></div>
+              </div>
+            </div>
+          } @else if (smsService.lastScanTime()) {
+            <p class="scan-status">
+              Last scan: {{ formatScanTime(smsService.lastScanTime()!) }}
+              · Found {{ smsService.smsExpenses().length }} transactions
+            </p>
+          }
+      }
+    </div>
+
+    <!-- Notification Reading -->
+    <div class="glass-card settings-section animate-fade-in-up" style="animation-delay: 100ms">
+      <div class="section-header">
+        <ion-icon name="notifications" class="section-icon"></ion-icon>
+        <h3 class="section-title">Notification Reading</h3>
+      </div>
+      
+      <div class="toggle-row" id="notif-toggle">
+        <div class="toggle-info">
+          <span class="toggle-label">Read Notifications</span>
+          @if (notificationReaderService.isEnabled()) {
+            <span class="status-badge status-badge--active">Active</span>
+          }
+        </div>
+        <button
+          class="toggle-switch"
+          [class.toggle-switch--on]="notificationReaderService.isEnabled()"
+          (click)="notificationReaderService.toggleEnabled()">
+          <span class="toggle-switch__knob"></span>
+        </button>
+      </div>
+      <p class="section-desc">Detect transactions from notification apps (GPay, Paytm, etc.)</p>
+    </div>
+
+    <!-- Accounts Management -->
+    <div class="glass-card settings-section">
+      <div class="section-header">
+        <ion-icon name="card" class="section-icon"></ion-icon>
+        <h3 class="section-title">Accounts & Cards</h3>
+      </div>
+      <button class="action-btn" routerLink="/tabs/accounts">
+        <div class="action-btn__icon-wrap">
+          <ion-icon name="wallet"></ion-icon>
+        </div>
+        <div class="action-btn__text">
+          <span class="action-btn__label">Manage Accounts</span>
+          <span class="action-btn__desc">Add Banks, Credit Cards, and Wallets</span>
+        </div>
+        <ion-icon name="arrow-forward" class="action-btn__arrow"></ion-icon>
+      </button>
+    </div>
+
+    <!-- Categories Management -->
+    <div class="glass-card settings-section">
+      <div class="section-header">
+        <ion-icon name="pricetag" class="section-icon"></ion-icon>
+        <h3 class="section-title">Categories</h3>
+      </div>
+      <button class="action-btn" routerLink="/tabs/categories">
+        <div class="action-btn__icon-wrap">
+          <ion-icon name="pricetag"></ion-icon>
+        </div>
+        <div class="action-btn__text">
+          <span class="action-btn__label">Manage Categories</span>
+          <span class="action-btn__desc">Add your own custom expense categories</span>
+        </div>
+        <ion-icon name="arrow-forward" class="action-btn__arrow"></ion-icon>
+      </button>
+    </div>
+
+    <!-- Appearance -->
+    <div class="glass-card settings-section">
+      <div class="section-header">
+        <ion-icon name="color-palette" class="section-icon"></ion-icon>
+        <h3 class="section-title">Appearance</h3>
+      </div>
+      <div class="toggle-row" id="dark-mode-toggle">
+        <span class="toggle-label">
+          <ion-icon name="moon" style="vertical-align: middle; margin-right: 8px; color: var(--color-primary);"></ion-icon> 
+          Dark Mode
+        </span>
+        <button
+          class="toggle-switch"
+          [class.toggle-switch--on]="themeService.isDark()"
+          (click)="themeService.toggleDarkMode()">
+          <span class="toggle-switch__knob"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Data -->
+    <div class="glass-card settings-section">
+      <div class="section-header">
+        <ion-icon name="briefcase" class="section-icon"></ion-icon>
+        <h3 class="section-title">Data</h3>
+      </div>
+      <div class="export-actions">
+        <button class="action-btn flex-1" (click)="exportDataCsv()">
+          <div class="action-btn__icon-wrap">
+            <ion-icon name="cloud-download"></ion-icon>
+          </div>
+          <div class="action-btn__text">
+            <span class="action-btn__label">Export CSV</span>
+            <span class="action-btn__desc">Spreadsheet</span>
+          </div>
+        </button>
+        <button class="action-btn flex-1" (click)="exportDataJson()">
+          <div class="action-btn__icon-wrap">
+            <ion-icon name="cloud-download"></ion-icon>
+          </div>
+          <div class="action-btn__text">
+            <span class="action-btn__label">Export JSON</span>
+            <span class="action-btn__desc">Full Backup</span>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- About -->
+    <div class="glass-card settings-section">
+      <div class="section-header">
+        <ion-icon name="information-circle" class="section-icon"></ion-icon>
+        <h3 class="section-title">About</h3>
+      </div>
+      <div class="about-content">
+        <div class="logo-placeholder">₹</div>
+        <p class="about-name">Expense Tracker <span class="version-badge">V2</span></p>
+        <p class="about-sub">Offline-first · Built with Angular + Ionic</p>
+      </div>
+    </div>
+
+  </div>
+</ion-content>

@@ -1,0 +1,150 @@
+<ion-content [fullscreen]="true" class="dashboard-content">
+  <ion-refresher slot="fixed" (ionRefresh)="handleRefresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+  <div class="dashboard-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="user-greeting">
+        <div class="logo-container">
+          <div class="logo-mark">
+            <div class="logo-inner"></div>
+          </div>
+        </div>
+        <h1>Hi</h1>
+      </div>
+      <button class="icon-btn">
+        <ion-icon name="search-outline"></ion-icon>
+      </button>
+    </header>
+
+    @if (!expenseService.isLoaded()) {
+      <div class="skeleton-wrapper">
+        <ion-skeleton-text animated style="width: 200px; height: 200px; border-radius: 50%; margin: 0 auto;"></ion-skeleton-text>
+      </div>
+    } @else {
+      <section class="balance-section">
+        <p class="month-label">Spent in <strong>{{ currentMonthName() }}</strong></p>
+        <div class="balance-circle">
+          <div class="circle-content">
+            <ion-icon name="arrow-up-outline" class="trend-icon-up"></ion-icon>
+            <h2 class="total-spent">{{ expenseService.monthlyTotal() | currency }}</h2>
+          </div>
+          <svg class="progress-ring" viewBox="0 0 120 120">
+            <circle class="ring-track" cx="60" cy="60" r="54"></circle>
+            <circle class="ring-fill" cx="60" cy="60" r="54"
+                    [style.stroke-dasharray]="circleCircumference"
+                    [style.stroke-dashoffset]="circleOffset(expenseService.monthlyTotal())"></circle>
+          </svg>
+        </div>
+        <div class="balance-stats">
+          <div class="stat-item actionable" routerLink="/settings">
+            <div class="shield-icon"><div class="dot"></div></div>
+            <span class="stat-label action-text">Set monthly<br>budget</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="action-pills">
+        <button class="pill-btn" routerLink="/reports">
+          <div class="icon-box bar-chart">
+            <div class="bar bar-1"></div><div class="bar bar-2"></div><div class="bar bar-3"></div>
+          </div>
+          <span>Trends</span>
+        </button>
+        <button class="pill-btn" routerLink="/categories">
+          <div class="icon-box pie-chart"><ion-icon name="pie-chart"></ion-icon></div>
+          <span>Categories</span>
+        </button>
+      </section>
+
+      <section class="card-section">
+        <div class="section-header">
+          <h2>Recent transactions</h2>
+          <button class="add-btn" routerLink="/add-expense">
+            <ion-icon name="add-circle-outline"></ion-icon> Add
+          </button>
+        </div>
+        <div class="transactions-list">
+          @for (tx of recentTransactions().slice(0, 5); track tx.id) {
+            <div class="tx-item">
+              <div class="tx-icon" [ngClass]="getCategoryColorClass(tx.categoryId)">
+                <ion-icon [name]="getCategoryIcon(tx.categoryId)"></ion-icon>
+              </div>
+              <div class="tx-details">
+                <span class="tx-name">{{ tx.description || getCategoryName(tx.categoryId) }}</span>
+                @if (tx.accountIdentifier) {
+                  <span class="tx-subtext">{{ tx.accountIdentifier }}</span>
+                }
+              </div>
+              <div class="tx-amount-col">
+                <span class="tx-amount">{{ tx.amount | currency }} <ion-icon name="arrow-up-outline"></ion-icon></span>
+                <span class="tx-date">{{ formatRelativeDetailed(tx.date) }}</span>
+              </div>
+            </div>
+          } @empty {
+            <div class="empty-state"><p>No recent transactions</p></div>
+          }
+        </div>
+      </section>
+
+      @if (accountService.accounts().length > 0) {
+        <section class="card-section accounts-section">
+          <div class="section-header-simple">
+            <div class="title-with-icon">
+              <ion-icon name="card-outline"></ion-icon>
+              <h2>Accounts</h2>
+            </div>
+            <ion-icon name="chevron-forward-outline" class="chevron"></ion-icon>
+          </div>
+          <div class="accounts-scroll">
+            @for (acc of accountService.accounts(); track acc.id) {
+              <div class="account-card" [ngClass]="getAccountTheme(acc.name)">
+                <div class="acc-top">
+                  <div class="bank-logo"><ion-icon name="business-outline"></ion-icon></div>
+                  <div class="acc-balance">
+                    <span>{{ (expenseService.monthlyTotalByAccount(acc.id) || 0) | currency }} <ion-icon name="arrow-up-outline"></ion-icon></span>
+                  </div>
+                </div>
+                <div class="acc-bottom">
+                  <div class="acc-info">
+                    <span class="bank-name">{{ acc.name }}</span>
+                    <span class="bank-number">xx{{ acc.accountIdentifier?.slice(-4) || '0000' }}</span>
+                  </div>
+                  <div class="acc-status">
+                    <ion-icon name="document-outline"></ion-icon> Not available <ion-icon name="refresh-outline" class="refresh"></ion-icon>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      <section class="card-section splits-section">
+        <div class="section-header-simple">
+          <div class="title-with-icon">
+            <ion-icon name="contract-outline" style="transform: rotate(45deg);"></ion-icon>
+            <h2>Splits</h2>
+          </div>
+          <div class="actions">
+            <ion-icon name="add-outline" class="action-icon add"></ion-icon>
+            <ion-icon name="chevron-forward-outline" class="action-icon forward"></ion-icon>
+          </div>
+        </div>
+        <div class="splits-content">
+          <h3>Create group & split expenses</h3>
+          <p>Split your bills for room rent, hotel, outings, movies.</p>
+        </div>
+      </section>
+
+      <section class="promo-banner">
+        <div class="banner-content">
+          <p class="banner-subtitle">Xiaomi Easy Finance</p>
+          <h3>THE LATEST<br>REDMI NOTE 15</h3>
+        </div>
+      </section>
+    }
+  </div>
+</ion-content>

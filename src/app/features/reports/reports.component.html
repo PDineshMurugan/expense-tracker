@@ -1,0 +1,118 @@
+<ion-content [fullscreen]="true" class="reports-content">
+  <div class="header-simple">
+    <h2>Reports</h2>
+    <div style="width: 48px;"></div>
+  </div>
+
+  <div class="reports-container animate-fade-in">
+    <ion-refresher slot="fixed" (ionRefresh)="handleRefresh($event)">
+      <ion-refresher-content></ion-refresher-content>
+    </ion-refresher>
+
+    <!-- Filters Section -->
+    <section class="filter-section">
+      <div class="form-card filter-card">
+        <div class="filter-row">
+          <div class="filter-group">
+            <label class="filter-label">Month</label>
+            <div class="select-wrapper">
+              <select class="custom-select" [value]="selectedMonth()" (change)="onMonthChange($event)" id="month-select">
+                @for (m of months; track m.value) {
+                  <option [value]="m.value">{{ m.label }}</option>
+                }
+              </select>
+              <ion-icon name="chevron-down-outline" class="select-icon"></ion-icon>
+            </div>
+          </div>
+          
+          <div class="filter-divider"></div>
+
+          <div class="filter-group">
+            <label class="filter-label">Category</label>
+            <div class="select-wrapper">
+              <select class="custom-select" [value]="selectedCategoryId()" (change)="onCategoryChange($event)" id="category-select">
+                <option value="all">All Categories</option>
+                @for (cat of categoryService.categories(); track cat.id) {
+                  <option [value]="cat.id">{{ cat.name }}</option>
+                }
+              </select>
+              <ion-icon name="chevron-down-outline" class="select-icon"></ion-icon>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary KPIs -->
+    <section class="kpi-section">
+      <div class="kpi-grid stagger-children">
+        <div class="kpi-card glass-card">
+          <div class="icon-box warning-theme">
+            <ion-icon name="wallet"></ion-icon>
+          </div>
+          <div class="kpi-info">
+            <span class="kpi-label">Total Outflow</span>
+            <span class="kpi-value">{{ filteredTotal() | currency }}</span>
+          </div>
+        </div>
+        
+        <div class="kpi-card glass-card">
+          <div class="icon-box info-theme">
+            <ion-icon name="receipt"></ion-icon>
+          </div>
+          <div class="kpi-info">
+            <span class="kpi-label">Transactions</span>
+            <span class="kpi-value">{{ currentExpenses().length }}</span>
+          </div>
+        </div>
+        
+        <div class="kpi-card glass-card">
+          <div class="icon-box success-theme">
+            <ion-icon name="trending-up"></ion-icon>
+          </div>
+          <div class="kpi-info">
+            <span class="kpi-label">Avg. Expense</span>
+            <span class="kpi-value">{{ filteredAvg() | currency }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Expense List -->
+    <section class="transactions-section">
+      <div class="section-header-simple">
+        <h3>Transactions</h3>
+      </div>
+      
+      @if (currentExpenses().length > 0) {
+        <div class="transactions-list stagger-children">
+          @for (expense of currentExpenses(); track expense.id) {
+            <div class="tx-item">
+              <div class="tx-icon">
+                <ion-icon [name]="getCategoryIcon(expense.categoryId)"></ion-icon>
+              </div>
+              <div class="tx-details">
+                <span class="tx-name">{{ getCategoryName(expense.categoryId) }}</span>
+                @if (getNote(expense)) {
+                  <span class="tx-subtext">{{ getNote(expense) }}</span>
+                }
+              </div>
+              <div class="tx-amount-col">
+                <span class="tx-amount">{{ expense.amount | currency }} <ion-icon name="arrow-up-outline"></ion-icon></span>
+                <span class="tx-date">{{ formatDate(expense.date) }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state glass-card">
+          <div class="icon-circle">
+            <ion-icon name="search-outline"></ion-icon>
+          </div>
+          <p>No transactions found for this period.</p>
+        </div>
+      }
+    </section>
+
+  </div>
+</ion-content>
