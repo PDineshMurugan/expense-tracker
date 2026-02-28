@@ -231,7 +231,9 @@ export class AddExpenseComponent {
         categoryId: this.selectedCategory(),
         accountId: this.selectedAccountId() || undefined,
         notes: (this.isTransfer() ? '[Transfer] ' : '') + `[${this.selectedPaymentMode()}] ${this.note()}`,
-        date: this.transactionDate()
+        date: this.transactionDate(),
+        merchantName: this.merchantName() || undefined,
+        rawSms: this.rawSms() || undefined
       });
       if (this.applyToPastTransactions() && this.merchantName() && this.selectedCategory() !== 'transfer') {
         const cCount = await this.expenseService.updateBulkCategoryForVendor(this.merchantName(), this.selectedCategory());
@@ -249,6 +251,8 @@ export class AddExpenseComponent {
         type: 'debit', // Transfers modelled as debits for simplicity
         notes: (this.isTransfer() ? '[Transfer] ' : '') + `[${this.selectedPaymentMode()}] ${this.note()}`,
         date: this.transactionDate(),
+        merchantName: this.merchantName() || undefined,
+        rawSms: this.rawSms() || undefined,
         timestampStr: new Date().getTime().toString()
       });
 

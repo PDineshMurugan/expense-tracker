@@ -208,9 +208,11 @@ export class DashboardComponent {
 
   // ========== Transactions ==========
   editTransaction(tx: any) {
-    this.router.navigate(['/tabs/add'], {
-      queryParams: { id: tx.id }
-    });
+    if (tx.originalBody) { // It's from SMS/Notification
+      this.router.navigate(['/tabs/add'], { state: { smsInterop: tx } });
+    } else {
+      this.router.navigate(['/tabs/add'], { queryParams: { id: tx.id } });
+    }
   }
 
   getTxTypeClass(tx: any): string {
