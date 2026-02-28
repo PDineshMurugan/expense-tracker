@@ -2,6 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { ParsedSMS } from '../sms/models/parsed-sms.model';
 import { SmsParserService } from '../sms/sms-parser.service';
 import { NotificationService } from './notification.service';
+import { AccountService } from './account.service';
 import { registerPlugin } from '@capacitor/core';
 
 // Legacy Capacitor Plugin import removed
@@ -26,7 +27,8 @@ export class SmsService {
 
     constructor(
         private notificationService: NotificationService,
-        private smsParserService: SmsParserService
+        private smsParserService: SmsParserService,
+        private accountService: AccountService
     ) {
         // Load persistent enabled state
         const saved = localStorage.getItem('sms-enabled');
@@ -136,6 +138,23 @@ export class SmsService {
                         const seenTs = seen[fp];
                         const ts = (p.date && p.date.getTime()) || Date.now();
 
+                        // Try matching account
+                        const accounts = this.accountService.accounts();
+                        if (accounts.length > 0) {
+                            if (p.accountIdentifier) {
+                                const match = accounts.find(a => a.accountIdentifier && a.accountIdentifier.endsWith(p.accountIdentifier!));
+                                if (match) p.accountId = match.id;
+                            }
+                            if (!p.accountId && (p.sender || p.bank)) {
+                                const sender = (p.sender || p.bank || '').toLowerCase();
+                                const match = accounts.find(a => {
+                                    const accName = a.name.toLowerCase();
+                                    return sender.includes(accName) || accName.includes(sender);
+                                });
+                                if (match) p.accountId = match.id;
+                            }
+                        }
+
                         // Ignore if seen in last year
                         if (fp && seenTs && Math.abs(ts - seenTs) < (365 * 24 * 60 * 60 * 1000)) {
                             // duplicate
@@ -223,9 +242,16 @@ export class SmsService {
         const map = new Map<string, { total: number, count: number }>();
 
         for (const exp of expenses) {
-            const sender = exp.sender || 'Unknown Bank';
+            let sender = exp.sender || 'Unknown Bank';
+            if (sender !== 'Unknown Bank') {
+                sender = sender.toUpperCase().replace(/.*-/, '').replace(' BANK', '').replace(' LTD', '').trim();
+            }
+
             const existing = map.get(sender) || { total: 0, count: 0 };
-            existing.total += exp.amount;
+            const amt = parseFloat(exp.amount as any) || 0;
+            if (exp.type === 'debit' && amt > 0 && exp.userCategory !== 'transfer' && !exp.isTransfer) {
+                existing.total += amt;
+            }
             existing.count += 1;
             map.set(sender, existing);
         }
@@ -253,7 +279,10 @@ export class SmsService {
             const key = merchant.toLowerCase();
 
             const existing = map.get(key) || { total: 0, count: 0, originalName: merchant };
-            existing.total += exp.amount;
+            const amt = parseFloat(exp.amount as any) || 0;
+            if (exp.type === 'debit' && amt > 0 && exp.userCategory !== 'transfer' && !exp.isTransfer) {
+                existing.total += amt;
+            }
             existing.count += 1;
             map.set(key, existing);
         }

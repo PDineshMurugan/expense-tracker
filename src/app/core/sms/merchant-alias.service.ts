@@ -31,7 +31,7 @@ export class MerchantAliasService {
         if (!merchantRaw) return merchantRaw;
 
         // Remove common UPI/VPA suffixes
-        let cleaned = merchantRaw.replace(/\*?UPI[-/]?/i, '')
+        const cleaned = merchantRaw.replace(/\*?UPI[-/]?/i, '')
             .replace(/\*?VPA[-/]?/i, '')
             .replace(/-T$/i, '')
             .replace(/@\w+$/i, '') // e.g. @okhdfcbank

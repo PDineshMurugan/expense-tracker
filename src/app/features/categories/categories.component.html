@@ -1,10 +1,80 @@
 <ion-content [fullscreen]="true" class="categories-content">
   <div class="header-simple">
-    <h2>Categories</h2>
+    <h2>Category Spends</h2>
     <div style="width: 48px;"></div>
   </div>
 
   <div class="categories-container animate-fade-in">
+    <ion-refresher slot="fixed" (ionRefresh)="handleRefresh($event)">
+      <ion-refresher-content></ion-refresher-content>
+    </ion-refresher>
+
+    <!-- Filters Section -->
+    <section class="filter-section">
+      <div class="segmented-control">
+        <button class="segment-btn" [class.active]="selectedFilter() === 'week'" (click)="setFilter('week')">Week</button>
+        <button class="segment-btn" [class.active]="selectedFilter() === 'month'" (click)="setFilter('month')">Month</button>
+        <button class="segment-btn" [class.active]="selectedFilter() === 'quarter'" (click)="setFilter('quarter')">Quarter</button>
+        <button class="segment-btn" [class.active]="selectedFilter() === 'year'" (click)="setFilter('year')">Year</button>
+      </div>
+      
+      <div class="period-info">
+        <span class="period-label">{{ dateRangeLabel() }}</span>
+        <h3 class="period-total">{{ totalPeriodSpend() | currency }}</h3>
+      </div>
+    </section>
+
+    <!-- Chart Section -->
+    @if (!isLoading() && categorySpends().length > 0) {
+      <div class="chart-container fade-in">
+        <apx-chart
+          [series]="chartOptions().series!"
+          [chart]="chartOptions().chart!"
+          [labels]="chartOptions().labels!"
+          [colors]="chartOptions().colors!"
+          [dataLabels]="chartOptions().dataLabels!"
+          [legend]="chartOptions().legend!"
+          [stroke]="chartOptions().stroke!"
+          [plotOptions]="chartOptions().plotOptions!"
+          [tooltip]="chartOptions().tooltip!"
+        ></apx-chart>
+      </div>
+    }
+
+    <!-- Loading State -->
+    @if (isLoading()) {
+      <div class="loading-state">
+        <ion-spinner name="crescent"></ion-spinner>
+      </div>
+    } @else {
+      <!-- Category List -->
+      <div class="category-list stagger-children">
+        @for (cat of categorySpends(); track cat.id) {
+          <div class="glass-card category-card" (click)="openCategorySpends(cat)">
+            <div class="category-color-bar" [style.background]="cat.color || 'var(--color-primary)'"></div>
+            <div class="category-row">
+              <div class="category-icon-wrap" [style.color]="cat.color || 'var(--color-primary)'" [style.background]="(cat.color || 'var(--color-primary)') + '20'">
+                <ion-icon [name]="cat.icon" class="category-icon"></ion-icon>
+              </div>
+              <div class="category-details">
+                <span class="category-label">{{ cat.name }}</span>
+                <span class="category-txn-count">{{ cat.expenseCount }} transactions</span>
+              </div>
+              <div class="category-spend">
+                <span class="spend-amount">{{ cat.totalSpend | currency }}</span>
+              </div>
+            </div>
+            
+            <!-- Progress Bar -->
+            @if (totalPeriodSpend() > 0) {
+              <div class="spend-progress-bg">
+                <div class="spend-progress-fill" [style.width.%]="(cat.totalSpend / totalPeriodSpend()) * 100" [style.background]="cat.color || 'var(--color-primary)'"></div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
 
     <!-- Add New Category -->
     @if (isAdding()) {
@@ -20,8 +90,20 @@
               class="custom-input"
               placeholder="Icon name (e.g. pizza)"
               [value]="newIcon()"
-              (input)="newIcon.set(getInputValue($event))"
-              id="new-icon-input" />
+              (input)="onIconInput($event)"
+              id="new-icon-input" autocomplete="off" />
+              
+            @if (searchResults().length > 0) {
+              <div class="icon-suggestions fade-in">
+                @for (icon of searchResults(); track icon) {
+                  <button class="icon-suggestion-btn" (click)="selectIcon(icon)">
+                    <ion-icon [name]="icon"></ion-icon>
+                    <span>{{ icon }}</span>
+                  </button>
+                }
+              </div>
+            }
+            
             <input
               type="text"
               class="custom-input"
@@ -36,32 +118,14 @@
           <button class="btn btn--gradient" (click)="addCategory()" [disabled]="!canAdd()" id="add-category-btn">Add</button>
         </div>
       </div>
-    } @else {
-      <button class="add-category-btn animate-fade-in" (click)="isAdding.set(true)" id="show-add-btn">
-        <div class="add-category-btn__icon">
-          <ion-icon name="add"></ion-icon>
-        </div>
-        <span>Add Category</span>
-      </button>
     }
-
-    <!-- Category List -->
-    <div class="category-list stagger-children">
-      @for (cat of categoryService.categories(); track cat.id) {
-        <div class="glass-card category-card">
-          <div class="category-color-bar" [style.background]="cat.color || 'var(--color-primary)'"></div>
-          <div class="category-row">
-            <div class="category-icon-wrap">
-              <ion-icon [name]="cat.icon" class="category-icon"></ion-icon>
-            </div>
-            <span class="category-label">{{ cat.name }}</span>
-            <button class="delete-btn" (click)="deleteCategory(cat.id)" [attr.id]="'delete-' + cat.id">
-              <ion-icon name="trash-outline" class="delete-icon"></ion-icon>
-            </button>
-          </div>
-        </div>
-      }
-    </div>
-
   </div>
+
+  @if (!isAdding()) {
+    <ion-fab slot="fixed" vertical="bottom" horizontal="end">
+      <ion-fab-button (click)="isAdding.set(true)">
+        <ion-icon name="add"></ion-icon>
+      </ion-fab-button>
+    </ion-fab>
+  }
 </ion-content>

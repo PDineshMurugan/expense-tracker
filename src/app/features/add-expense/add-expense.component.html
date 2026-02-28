@@ -3,7 +3,7 @@
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/tabs/dashboard" class="custom-back-btn" text="" icon="chevron-back-outline"></ion-back-button>
     </ion-buttons>
-    <h2>Add Expense</h2>
+    <h2>{{ isEditMode() ? 'Edit Transaction' : 'Add Expense' }}</h2>
     <div style="width: 48px;"></div>
   </div>
 
@@ -20,7 +20,7 @@
           (input)="onAmountChange($event)"
           inputmode="decimal"
           min="0"
-          autofocus
+         
           id="amount-input" />
       </div>
       <div class="amount-underline">
@@ -100,7 +100,7 @@
       <div class="section-header-simple">
         <h3>Payment method</h3>
       </div>
-      <div class="payment-modes form-card p-sm">
+      <div class="payment-modes form-card p-sm payment-wrap">
         @for (mode of paymentModes; track mode) {
           <button
             class="payment-chip"
@@ -131,6 +131,28 @@
       </div>
     </section>
 
+    @if (rawSms()) {
+      <section class="form-section">
+        <div class="section-header-simple">
+          <h3>Original SMS</h3>
+        </div>
+        <div class="form-card p-sm raw-sms-block">
+          <p class="raw-sms-text">{{ rawSms() }}</p>
+        </div>
+      </section>
+    }
+
+    <!-- Bulk Update Checkbox -->
+    @if (isEditMode() && merchantName() && selectedCategory() && selectedCategory() !== 'transfer') {
+      <div class="bulk-update-row">
+        <label class="checkbox-container">
+          <input type="checkbox" [checked]="applyToPastTransactions()" (change)="applyToPastTransactions.set(!applyToPastTransactions())" />
+          <span class="checkmark"></span>
+          <span class="checkbox-label">Apply <b>{{ selectedCategoryLabel() }}</b> to all past transactions from <b>{{ merchantName() }}</b></span>
+        </label>
+      </div>
+    }
+
     <!-- Save Button -->
     <div class="action-footer">
       <button
@@ -139,7 +161,7 @@
         [class.ready]="canSave()"
         (click)="save()"
         id="save-btn">
-        <span class="btn-text">Save Expense</span>
+        <span class="btn-text">{{ isEditMode() ? 'Update' : 'Save Expense' }}</span>
       </button>
     </div>
 

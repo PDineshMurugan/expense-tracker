@@ -1,0 +1,343 @@
+.account-details-content {
+    --background: var(--color-bg);
+}
+
+.header-banner {
+    padding-top: calc(env(safe-area-inset-top) + 20px);
+    padding-bottom: 40px;
+    border-bottom-left-radius: 30px;
+    border-bottom-right-radius: 30px;
+    color: white;
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
+        z-index: 1;
+    }
+
+    &.theme-blue {
+        background: linear-gradient(135deg, #2563eb, #1e40af);
+    }
+
+    &.theme-dark {
+        background: linear-gradient(135deg, #1f2937, #111827);
+    }
+
+    &.theme-gradient {
+        background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    }
+
+    * {
+        position: relative;
+        z-index: 2;
+    }
+}
+
+.header-nav {
+    padding: 0 16px;
+    margin-bottom: 20px;
+
+    .custom-back-btn {
+        --color: white;
+        font-size: 1.2rem;
+    }
+}
+
+.account-overview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 20px;
+
+    .bank-icon-wrapper {
+        width: 60px;
+        height: 60px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+        backdrop-filter: blur(10px);
+
+        ion-icon {
+            font-size: 28px;
+        }
+    }
+
+    .account-name {
+        margin: 0 0 4px;
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+
+    .account-id {
+        margin: 0 0 24px;
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+
+    .spend-block {
+        background: rgba(0, 0, 0, 0.2);
+        padding: 16px 32px;
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+
+        .spend-label {
+            display: block;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+            margin-bottom: 4px;
+        }
+
+        .spend-amount {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 800;
+        }
+    }
+}
+
+.transactions-container {
+    padding: 24px 20px;
+
+    .section-header-small {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+
+        h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--color-text);
+        }
+
+        .badge {
+            background: var(--color-primary);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+    }
+}
+
+.tx-card-vertical {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    background: var(--color-surface);
+    border-radius: 20px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.03);
+
+    .body.dark & {
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    &:active {
+        transform: scale(0.98);
+    }
+
+    .tx-card-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 16px;
+
+        ion-icon {
+            font-size: 24px;
+        }
+
+        &.icon-orange {
+            background: rgba(249, 115, 22, 0.15);
+            color: #f97316;
+        }
+
+        &.icon-pink {
+            background: rgba(236, 72, 153, 0.15);
+            color: #ec4899;
+        }
+
+        &.icon-blue {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+        }
+
+        &.icon-purple {
+            background: rgba(168, 85, 247, 0.15);
+            color: #a855f7;
+        }
+
+        &.icon-red {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+
+        &.icon-default {
+            background: rgba(99, 102, 241, 0.15);
+            color: #6366f1;
+        }
+    }
+
+    .tx-card-details {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+
+        .tx-name {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+        }
+
+        .tx-date {
+            font-size: 0.8rem;
+            color: var(--color-text-muted);
+        }
+    }
+
+    .tx-card-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        .tx-amount {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--color-text);
+        }
+
+        .tx-type-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            ion-icon {
+                font-size: 14px;
+            }
+
+            &.tx-type-debit {
+                background: rgba(239, 68, 68, 0.1);
+                color: #ef4444;
+            }
+
+            &.tx-type-income {
+                background: rgba(34, 197, 94, 0.1);
+                color: #22c55e;
+            }
+
+            &.tx-type-transfer {
+                background: rgba(168, 85, 247, 0.1);
+                color: #a855f7;
+            }
+        }
+    }
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+
+    .empty-icon {
+        width: 80px;
+        height: 80px;
+        background: var(--color-surface);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 24px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+
+        ion-icon {
+            font-size: 40px;
+            color: var(--color-text-muted);
+        }
+    }
+
+    h3 {
+        margin: 0 0 8px;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--color-text);
+    }
+
+    p {
+        margin: 0;
+        font-size: 0.95rem;
+        color: var(--color-text-muted);
+        line-height: 1.5;
+    }
+}
+
+/* Animations */
+.fade-in-up {
+    animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.slide-up {
+    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@for $i from 1 through 10 {
+    .transactions-list .tx-card-vertical:nth-child(#{$i}) {
+        animation-delay: #{$i * 0.05}s;
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

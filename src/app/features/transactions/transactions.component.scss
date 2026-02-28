@@ -1,0 +1,205 @@
+:host {
+    display: block;
+    height: 100%;
+}
+
+.transactions-content {
+    --background: var(--color-background);
+    font-family: 'Inter', sans-serif;
+}
+
+.transactions-container {
+    padding: var(--spacing-md);
+    padding-bottom: 40px;
+}
+
+.header-simple {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+
+    h2 {
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text);
+        margin: 0;
+    }
+}
+
+.custom-back-btn {
+    --color: var(--color-text);
+    --padding-start: 0;
+    --padding-end: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--color-surface);
+    border: 1px solid var(--glass-border);
+
+    &::part(native) {
+        padding: 0;
+        display: flex;
+        justify-content: center;
+    }
+
+    &::part(icon) {
+        font-size: 1.2rem;
+        margin: 0;
+    }
+}
+
+.transactions-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.tx-card-vertical {
+    display: flex;
+    align-items: center;
+    background: var(--color-surface);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    transition: transform 0.2s ease, background 0.2s ease;
+    cursor: pointer;
+
+    &:active {
+        transform: scale(0.98);
+        background: var(--color-surface-alt);
+    }
+}
+
+.tx-card-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    margin-right: var(--spacing-md);
+}
+
+.icon-red {
+    background: #3a1a1a;
+    color: #ff5252;
+}
+
+.icon-pink {
+    background: #3a1a2a;
+    color: #ff4081;
+}
+
+.icon-blue {
+    background: #1a2a3a;
+    color: #40c4ff;
+}
+
+.icon-orange {
+    background: #3a2a1a;
+    color: #ff9800;
+}
+
+.icon-purple {
+    background: #2a1a3a;
+    color: #ab47bc;
+}
+
+.icon-default {
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.tx-card-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.tx-name {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+}
+
+.tx-date {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+}
+
+.tx-card-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.tx-amount {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text);
+}
+
+.tx-type-icon {
+    font-size: 1rem;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+
+    ion-icon {
+        display: block;
+    }
+}
+
+.tx-type-income ion-icon {
+    color: #4caf50;
+    transform: rotate(45deg);
+}
+
+.tx-type-debit ion-icon {
+    color: #f44336;
+    transform: rotate(45deg);
+}
+
+.tx-type-transfer ion-icon {
+    color: #2196f3;
+}
+
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-xl) var(--spacing-md);
+
+    .empty-icon {
+        font-size: 3rem;
+        color: var(--color-text-muted);
+        margin-bottom: var(--spacing-md);
+        opacity: 0.5;
+    }
+
+    h3 {
+        color: var(--color-text);
+        font-size: var(--font-size-base);
+        margin: 0 0 var(--spacing-xs) 0;
+    }
+
+    p {
+        color: var(--color-text-secondary);
+        font-size: var(--font-size-sm);
+        margin: 0;
+    }
+}
+
+.skeleton-wrapper {
+    display: flex;
+    flex-direction: column;
+}

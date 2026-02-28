@@ -1,0 +1,68 @@
+<ion-content class="account-details-content">
+  <ion-refresher slot="fixed" (ionRefresh)="handleRefresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+  <!-- Animated Header Background -->
+  <div class="header-banner" [ngClass]="getAccountTheme(account()?.name || '')">
+    <div class="header-nav">
+      <ion-buttons slot="start">
+        <ion-back-button defaultHref="/tabs/dashboard" class="custom-back-btn" text="" icon="chevron-back-outline"></ion-back-button>
+      </ion-buttons>
+    </div>
+
+    <div class="account-overview fade-in-up">
+      <div class="bank-icon-wrapper">
+        <ion-icon name="business-outline"></ion-icon>
+      </div>
+      <h1 class="account-name">{{ account()?.name || 'Unknown Account' }}</h1>
+      <p class="account-id">
+        @if (account()?.accountIdentifier) {
+          xx{{ account()?.accountIdentifier?.slice(-4) }}
+        } @else {
+          Manual / Extracted
+        }
+      </p>
+      
+      <div class="spend-block">
+        <span class="spend-label">Total Spent</span>
+        <h2 class="spend-amount">{{ totalSpend() | currency }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="transactions-container">
+    <div class="section-header-small">
+      <h3>Transaction History</h3>
+      <span class="badge">{{ allTransactions().length }}</span>
+    </div>
+
+    <div class="transactions-list">
+      @for (tx of allTransactions(); track tx.id) {
+        <div class="tx-card-vertical slide-up" (click)="editTransaction(tx)">
+          <div class="tx-card-icon" [ngClass]="getCategoryColorClass(tx.categoryId)">
+            <ion-icon [name]="tx.originalBody ? 'phone-portrait-outline' : getCategoryIcon(tx.categoryId)"></ion-icon>
+          </div>
+          
+          <div class="tx-card-details">
+            <span class="tx-name">{{ tx.merchantName || tx.description || 'Unknown' }}</span>
+            <span class="tx-date">{{ formatRelativeDetailed(tx.date) }}</span>
+          </div>
+
+          <div class="tx-card-right">
+            <span class="tx-amount">{{ tx.amount | currency }}</span>
+            <div class="tx-type-icon" [ngClass]="getTxTypeClass(tx)">
+              <ion-icon [name]="getTxTypeIcon(tx)"></ion-icon>
+            </div>
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state">
+           <div class="empty-icon"><ion-icon name="receipt-outline"></ion-icon></div>
+           <h3>No transactions</h3>
+           <p>There are no transactions linked to this account yet.</p>
+        </div>
+      }
+    </div>
+  </div>
+</ion-content>

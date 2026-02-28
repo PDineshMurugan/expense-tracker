@@ -50,7 +50,8 @@ export class AddExpenseComponent {
     const state = this.router.getCurrentNavigation()?.extras.state || history.state;
     if (state?.smsInterop) {
       const sms = state.smsInterop;
-      this.amount.set(sms.amount || 0);
+      // Force parse into float to prevent showing "45" randomly if amount was saved weirdly
+      this.amount.set(parseFloat(sms.amount) || 0);
       this.note.set(sms.description || '');
 
       const accounts = this.accountService.accounts();
@@ -65,13 +66,20 @@ export class AddExpenseComponent {
       if (sms.isTransfer) {
         this.selectedCategory.set('transfer');
         this.selectedCategoryLabel.set('Transfer');
+      } else if (sms.userCategory) {
+        this.selectedCategory.set(sms.userCategory);
+        this.selectedCategoryLabel.set(sms.userCategoryLabel || '');
       }
+
       if (sms.date) {
         const d = sms.date instanceof Date ? sms.date : new Date(sms.date);
         if (!isNaN(d.getTime())) {
-          this.transactionDate.set(d.toISOString().split('T')[0]);
+          this.transactionDate.set(AddExpenseComponent.getLocalISOString(d));
         }
       }
+
+      this.rawSms.set(sms.originalBody || '');
+      this.merchantName.set(sms.merchantName || '');
       this.pendingSmsId = sms.id;
     }
 
@@ -85,6 +93,60 @@ export class AddExpenseComponent {
     if (queryParams['date']) {
       this.transactionDate.set(queryParams['date']);
     }
+    const id = queryParams['id'];
+    if (id) {
+      this.isEditMode.set(true);
+      this.editId = id;
+      this.loadExpense(id);
+    }
+
+    // Treat SMS interoperability from Transactions page as Edit mode
+    if (this.pendingSmsId || id) {
+      this.isEditMode.set(true);
+    }
+  }
+
+  readonly isEditMode = signal<boolean>(false);
+  editId?: string;
+
+  async loadExpense(id: string) {
+    const expense = await this.expenseService.getExpenseById(id);
+    if (expense) {
+      this.amount.set(parseFloat(expense.amount as any) || 0);
+
+      let expDate = expense.date;
+      if (expDate && expDate.includes('T')) {
+        expDate = expDate.split('T')[0];
+      }
+      this.transactionDate.set(expDate);
+
+      this.selectedCategory.set(expense.categoryId);
+      const catName = this.categoryService.categories().find(c => c.id === expense.categoryId)?.name || '';
+      this.selectedCategoryLabel.set(catName);
+      if (expense.accountId) this.selectedAccountId.set(expense.accountId);
+      this.isTransfer.set((expense as any).type === 'transfer' || expense.categoryId === 'transfer');
+
+      let merchantName = (expense as any).merchantName || '';
+      let exNote = (expense as any).notes || '';
+      this.note.set(merchantName ? merchantName + (exNote ? ' - ' + exNote : '') : exNote);
+
+      // Reverse parsing the note to extract payment mode from the string e.g. [UPI]
+      const noteStr = this.note();
+      for (const mode of this.paymentModes) {
+        if (noteStr.includes(`[${mode}]`)) {
+          this.selectedPaymentMode.set(mode);
+          this.note.set(noteStr.replace(`[${mode}] `, '').trim());
+          break;
+        }
+      }
+      if (this.note().startsWith('[Transfer] ')) {
+        this.note.set(this.note().replace('[Transfer] ', '').trim());
+      }
+
+      const raw = (expense as any).rawSms || '';
+      this.rawSms.set(raw);
+      this.merchantName.set(merchantName);
+    }
   }
 
   readonly paymentModes = PAYMENT_MODES;
@@ -97,8 +159,11 @@ export class AddExpenseComponent {
   readonly selectedAccountId = signal<string>('');
   readonly isTransfer = signal<boolean>(false);
 
-  private static getLocalISOString(): string {
-    const d = new Date();
+  readonly rawSms = signal<string>('');
+  readonly merchantName = signal<string>('');
+  readonly applyToPastTransactions = signal<boolean>(false);
+
+  private static getLocalISOString(d: Date = new Date()): string {
     const tzOffset = d.getTimezoneOffset() * 60000;
     return new Date(d.getTime() - tzOffset).toISOString().split('T')[0];
   }
@@ -160,23 +225,43 @@ export class AddExpenseComponent {
       return;
     }
 
-    await this.expenseService.addExpense({
-      amount: this.amount(),
-      categoryId: this.selectedCategory(),
-      accountId: this.selectedAccountId() || undefined,
-      type: 'debit', // Transfsers modelled as debits for simplicity or user should manually add credit
-      notes: (this.isTransfer() ? '[Transfer] ' : '') + `[${this.selectedPaymentMode()}] ${this.note()}`,
-      date: this.transactionDate(),
-      timestampStr: new Date().getTime().toString()
-    });
+    if (this.isEditMode() && this.editId) {
+      await this.expenseService.updateExpense(this.editId, {
+        amount: this.amount(),
+        categoryId: this.selectedCategory(),
+        accountId: this.selectedAccountId() || undefined,
+        notes: (this.isTransfer() ? '[Transfer] ' : '') + `[${this.selectedPaymentMode()}] ${this.note()}`,
+        date: this.transactionDate()
+      });
+      if (this.applyToPastTransactions() && this.merchantName() && this.selectedCategory() !== 'transfer') {
+        const cCount = await this.expenseService.updateBulkCategoryForVendor(this.merchantName(), this.selectedCategory());
+        if (cCount > 0) {
+          this.notificationService.info(`Updated category for ${cCount} past transactions of ${this.merchantName()}`);
+        }
+      }
+      Haptics.notification({ type: NotificationType.Success }).catch(() => { });
+      this.notificationService.success('Expense updated successfully');
+    } else {
+      await this.expenseService.addExpense({
+        amount: this.amount(),
+        categoryId: this.selectedCategory(),
+        accountId: this.selectedAccountId() || undefined,
+        type: 'debit', // Transfers modelled as debits for simplicity
+        notes: (this.isTransfer() ? '[Transfer] ' : '') + `[${this.selectedPaymentMode()}] ${this.note()}`,
+        date: this.transactionDate(),
+        timestampStr: new Date().getTime().toString()
+      });
 
-    if (this.pendingSmsId) {
-      this.smsService.removeSmsExpense(this.pendingSmsId);
-      this.pendingSmsId = undefined;
-      history.replaceState({}, '');
+      if (this.pendingSmsId) {
+        this.smsService.removeSmsExpense(this.pendingSmsId);
+        this.pendingSmsId = undefined;
+        history.replaceState({}, '');
+      }
+
+      Haptics.notification({ type: NotificationType.Success }).catch(() => { });
+      this.notificationService.success('Expense added successfully');
     }
 
-    Haptics.notification({ type: NotificationType.Success }).catch(() => { });
     this.router.navigate(['/tabs/dashboard']);
   }
 }

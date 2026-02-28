@@ -311,32 +311,52 @@
     }
 }
 
-.transactions-list {
+.transactions-horizontal-list {
     display: flex;
-    flex-direction: column;
-}
+    gap: var(--spacing-md);
+    overflow-x: auto;
+    padding-bottom: var(--spacing-sm);
+    margin: 0 calc(-1 * var(--spacing-lg));
+    padding: 0 var(--spacing-lg) var(--spacing-sm) var(--spacing-lg);
+    scrollbar-width: none;
 
-.tx-item {
-    display: flex;
-    align-items: center;
-    padding: var(--spacing-sm) 0;
-    border-bottom: 1px solid var(--glass-border);
-
-    &:last-child {
-        border-bottom: none;
-        padding-bottom: 0;
+    &::-webkit-scrollbar {
+        display: none;
     }
 }
 
-.tx-icon {
-    width: 44px;
-    height: 44px;
+.tx-card {
+    min-width: 150px;
+    background: var(--color-surface-alt);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    border: 1px solid var(--glass-border);
+    transition: transform 0.2s ease, background 0.2s ease;
+    cursor: pointer;
+
+    &:active {
+        transform: scale(0.98);
+        background: rgba(255, 255, 255, 0.05);
+    }
+}
+
+.tx-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.tx-card-icon {
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.2rem;
-    margin-right: var(--spacing-sm);
+    font-size: 1.1rem;
     flex-shrink: 0;
 }
 
@@ -370,48 +390,71 @@
     color: #fff;
 }
 
-.tx-details {
-    flex: 1;
+.tx-type-icon {
+    font-size: 1.1rem;
+    padding: 4px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+
+    ion-icon {
+        display: block;
+    }
+}
+
+.tx-type-income ion-icon {
+    color: #4caf50;
+    transform: rotate(45deg);
+}
+
+.tx-type-debit ion-icon {
+    color: #f44336;
+    transform: rotate(45deg);
+}
+
+.tx-type-transfer ion-icon {
+    color: #2196f3;
+}
+
+.tx-card-body {
     display: flex;
     flex-direction: column;
+    gap: 4px;
 }
 
 .tx-name {
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     color: var(--color-text);
-}
-
-.tx-subtext {
-    font-size: var(--font-size-xs);
-    color: var(--color-text-muted);
-    margin-top: 2px;
-}
-
-.tx-amount-col {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .tx-amount {
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-bold);
     color: var(--color-text);
-    display: flex;
-    align-items: center;
-    gap: 2px;
-
-    ion-icon {
-        font-size: 0.8rem;
-        color: var(--color-text-secondary);
-    }
 }
 
-.tx-date {
-    font-size: 0.7rem;
-    color: var(--color-text-muted);
-    margin-top: 4px;
+.see-all-btn {
+    background: transparent;
+    border: none;
+    color: var(--color-accent);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+
+    &:active {
+        background: rgba(var(--color-accent-rgb), 0.1);
+    }
+
+    ion-icon {
+        font-size: 1.1rem;
+    }
 }
 
 /* Accounts Section */
@@ -453,47 +496,53 @@
 
 .account-card {
     min-width: 240px;
+    background: var(--color-surface);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
     display: flex;
     flex-direction: column;
     gap: var(--spacing-lg);
     transition: transform 0.2s ease;
+    color: var(--color-text);
 
     &:active {
         transform: scale(0.98);
+        background: var(--color-surface-alt);
     }
 }
 
 .theme-blue {
-    background: linear-gradient(135deg, #a0d8ef, #e0f2f7);
-    color: #1c1c1e;
-
-    .acc-status {
-        color: #3a3a3c;
-        background: rgba(0, 0, 0, 0.05);
-    }
+    border-top: 3px solid #2196f3;
 
     .bank-logo {
-        color: #d4a373;
-        background: #fff;
+        color: #2196f3;
+        background: rgba(33, 150, 243, 0.1);
         border-radius: 50%;
         padding: 4px;
     }
 }
 
 .theme-dark {
-    background: #2a3a5a;
-    color: #fff;
+    border-top: 3px solid #f44336;
 
-    .acc-status {
-        background: rgba(255, 255, 255, 0.1);
+    .bank-logo {
+        color: #f44336;
+        background: rgba(244, 67, 54, 0.1);
+        border-radius: 50%;
+        padding: 4px;
     }
 }
 
 .theme-gradient {
-    background: linear-gradient(135deg, #1c1c1e, #2c2c2e);
-    border: 1px solid var(--glass-border);
+    border-top: 3px solid var(--color-accent);
+
+    .bank-logo {
+        color: var(--color-accent);
+        background: rgba(var(--color-accent-rgb), 0.1);
+        border-radius: 50%;
+        padding: 4px;
+    }
 }
 
 .acc-top {
@@ -554,6 +603,25 @@
     .refresh {
         font-size: 0.9rem;
         margin-left: 2px;
+    }
+}
+
+.add-bank-btn-sm {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-text);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:active {
+        background: rgba(var(--color-accent-rgb), 0.3);
     }
 }
 

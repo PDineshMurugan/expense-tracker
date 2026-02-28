@@ -3,6 +3,7 @@ import { Platform } from '@ionic/angular/standalone';
 import { ParsedSMS } from '../sms/models/parsed-sms.model';
 import { SmsParserService } from '../sms/sms-parser.service';
 import { ExpenseService } from './expense.service';
+import { AccountService } from './account.service';
 import { NotificationService } from './notification.service';
 import { registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -15,6 +16,7 @@ export class NotificationReaderService {
     private platform = inject(Platform);
     private notificationService = inject(NotificationService);
     private expenseService = inject(ExpenseService);
+    private accountService = inject(AccountService);
     private router = inject(Router);
     private smsParserService = inject(SmsParserService);
 
@@ -187,6 +189,23 @@ export class NotificationReaderService {
             const tzOffset = parsed.date.getTimezoneOffset() * 60000;
             const localISO = new Date(parsed.date.getTime() - tzOffset).toISOString().split('T')[0];
 
+            let matchedAccountId: string | undefined;
+            const accounts = this.accountService.accounts();
+            if (accounts.length > 0) {
+                if (parsed.accountIdentifier) {
+                    const match = accounts.find(a => a.accountIdentifier && a.accountIdentifier.endsWith(parsed.accountIdentifier!));
+                    if (match) matchedAccountId = match.id;
+                }
+                if (!matchedAccountId && (parsed.sender || parsed.bank)) {
+                    const sender = (parsed.sender || parsed.bank || '').toLowerCase();
+                    const match = accounts.find(a => {
+                        const accName = a.name.toLowerCase();
+                        return sender.includes(accName) || accName.includes(sender);
+                    });
+                    if (match) matchedAccountId = match.id;
+                }
+            }
+
             this.expenseService.addExpense({
                 amount: parsed.amount,
                 date: localISO,
@@ -194,6 +213,7 @@ export class NotificationReaderService {
                 merchantName: parsed.merchantName || parsed.sender,
                 notes: `[Auto-Detect] ${parsed.merchantName || parsed.sender}`,
                 categoryId: parsed.isTransfer ? 'transfer' : 'unknown',
+                accountId: matchedAccountId,
                 source: 'sms', // Represents auto-imported
                 timestampStr: parsed.date.getTime().toString()
             }).then(() => {

@@ -228,6 +228,172 @@ export class ExpenseService {
         }
     }
 
+    async getExpenseById(id: string): Promise<Expense | undefined> {
+        const db = await this.storage.ready();
+        const tx = db.transaction('expenses', 'readonly');
+        const store = tx.objectStore('expenses');
+        let expense: Expense = await store.get(id);
+
+        if (expense && expense.encryptedPayload) {
+            try {
+                const decrypted = await this.crypto.decrypt(expense.encryptedPayload);
+                expense = { ...expense, ...decrypted };
+            } catch (e) {
+                console.error('Decryption failed for expense', expense.id);
+            }
+        }
+        return expense;
+    }
+
+    async updateExpense(id: string, updates: Partial<Expense> & {
+        merchantName?: string,
+        accountIdentifier?: string,
+        notes?: string,
+        rawSms?: string,
+    }): Promise<void> {
+        const now = new Date();
+        const tzOffset = now.getTimezoneOffset() * 60000;
+        const localISO = new Date(now.getTime() - tzOffset).toISOString();
+
+        const db = await this.storage.ready();
+
+        // Use a transaction across expenses, accounts, and monthlySummaries to safely adjust balances
+        const tx = db.transaction(['expenses', 'accounts', 'monthlySummaries'], 'readwrite');
+        const expenseStore = tx.objectStore('expenses');
+        const accountStore = tx.objectStore('accounts');
+        const summaryStore = tx.objectStore('monthlySummaries');
+
+        try {
+            const existingExpense = await expenseStore.get(id);
+            if (!existingExpense) {
+                throw new Error(`Expense with id ${id} not found`);
+            }
+
+            // 1. Revert previous balances
+            const oldAccount = await accountStore.get(existingExpense.accountId);
+            if (oldAccount) {
+                if (existingExpense.type === 'debit') {
+                    oldAccount.balance += existingExpense.amount; // Revert debit
+                } else {
+                    oldAccount.balance -= existingExpense.amount; // Revert credit
+                }
+                oldAccount.updatedAt = localISO;
+                await accountStore.put(oldAccount);
+            }
+
+            const oldMonthPrefix = existingExpense.date.substring(0, 7);
+            const oldSummary = await summaryStore.get(oldMonthPrefix);
+            if (oldSummary) {
+                if (existingExpense.type === 'debit') {
+                    oldSummary.totalExpense -= existingExpense.amount;
+                } else {
+                    oldSummary.totalIncome -= existingExpense.amount;
+                }
+                await summaryStore.put(oldSummary);
+            }
+
+            // 2. Prepare new data
+            let decryptedExistingPayload: any = {};
+            if (existingExpense.encryptedPayload) {
+                try {
+                    decryptedExistingPayload = await this.crypto.decrypt(existingExpense.encryptedPayload);
+                } catch (e) { /* ignore */ }
+            }
+
+            const payloadData = {
+                merchantName: updates.merchantName !== undefined ? updates.merchantName : decryptedExistingPayload.merchantName,
+                accountIdentifier: updates.accountIdentifier !== undefined ? updates.accountIdentifier : decryptedExistingPayload.accountIdentifier,
+                notes: updates.notes !== undefined ? updates.notes : decryptedExistingPayload.notes,
+                rawSms: updates.rawSms !== undefined ? updates.rawSms : decryptedExistingPayload.rawSms
+            };
+
+            const encryptedPayload = await this.crypto.encrypt(payloadData);
+
+            const updatedExpense: Expense = {
+                ...existingExpense,
+                ...updates,
+                encryptedPayload,
+                updatedAt: localISO
+            };
+
+            // 3. Apply new balances
+            const newAccount = await accountStore.get(updatedExpense.accountId);
+            if (newAccount) {
+                if (updatedExpense.type === 'debit') {
+                    newAccount.balance -= updatedExpense.amount;
+                } else {
+                    newAccount.balance += updatedExpense.amount;
+                }
+                newAccount.updatedAt = localISO;
+                await accountStore.put(newAccount);
+            }
+
+            const newMonthPrefix = updatedExpense.date.substring(0, 7);
+            let newSummary = await summaryStore.get(newMonthPrefix);
+            if (!newSummary) {
+                newSummary = { month: newMonthPrefix, totalExpense: 0, totalIncome: 0 };
+            }
+
+            if (updatedExpense.type === 'debit') {
+                newSummary.totalExpense += updatedExpense.amount;
+            } else {
+                newSummary.totalIncome += updatedExpense.amount;
+            }
+            await summaryStore.put(newSummary);
+
+            // 4. Save updated expense
+            await expenseStore.put(updatedExpense);
+
+            await tx.done;
+            this.loadDashboardData();
+        } catch (error) {
+            console.error('Update Transaction Failed, rolling back', error);
+            tx.abort();
+            throw error;
+        }
+    }
+
+    async updateBulkCategoryForVendor(merchantName: string, categoryId: string): Promise<number> {
+        if (!merchantName || !categoryId) return 0;
+
+        const db = await this.storage.ready();
+        const tx = db.transaction('expenses', 'readwrite');
+        const store = tx.objectStore('expenses');
+        let cursor = await store.openCursor();
+        let updatedCount = 0;
+
+        const now = new Date();
+        const tzOffset = now.getTimezoneOffset() * 60000;
+        const localISO = new Date(now.getTime() - tzOffset).toISOString();
+
+        while (cursor) {
+            let expense = cursor.value;
+            let currentMerchant = (expense as any).merchantName;
+
+            if (expense.encryptedPayload && !currentMerchant) {
+                try {
+                    const decrypted: any = await this.crypto.decrypt(expense.encryptedPayload);
+                    currentMerchant = decrypted.merchantName;
+                } catch (e) { }
+            }
+
+            if (currentMerchant === merchantName && expense.categoryId !== categoryId) {
+                expense.categoryId = categoryId;
+                expense.updatedAt = localISO;
+                await cursor.update(expense);
+                updatedCount++;
+            }
+            cursor = await cursor.continue();
+        }
+
+        await tx.done;
+
+        if (updatedCount > 0) {
+            this.loadDashboardData();
+        }
+        return updatedCount;
+    }
+
     async deleteExpense(id: string): Promise<void> {
         const db = await this.storage.ready();
         await db.delete('expenses', id);

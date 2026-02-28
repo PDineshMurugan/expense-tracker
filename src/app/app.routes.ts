@@ -30,6 +30,10 @@ export const appRoutes: Route[] = [
                 loadComponent: () => import('./features/accounts/accounts.component').then(m => m.AccountsComponent),
             },
             {
+                path: 'accounts/:id',
+                loadComponent: () => import('./features/accounts/account-details.component').then(m => m.AccountDetailsComponent),
+            },
+            {
                 path: 'auto-transactions',
                 loadComponent: () => import('./features/auto-transactions/auto-transactions.component').then(m => m.AutoTransactionsComponent),
             },
@@ -40,6 +44,10 @@ export const appRoutes: Route[] = [
             {
                 path: 'auto-transactions/merchant/:id',
                 loadComponent: () => import('./features/auto-transactions/merchant-details.component').then(m => m.MerchantDetailsComponent),
+            },
+            {
+                path: 'transactions',
+                loadComponent: () => import('./features/transactions/transactions.component').then(m => m.TransactionsComponent),
             },
             {
                 path: '',

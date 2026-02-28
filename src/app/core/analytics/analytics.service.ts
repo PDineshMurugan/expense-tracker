@@ -62,7 +62,7 @@ export class AnalyticsService {
      * (Same merchant, amt +- 5%, >= 3 occurrences, ~30 days apart)
      * For performance, this should be incrementally evaluated over recent data, not the full history.
      */
-    async detectRecurringPayments(recentDays: number = 90): Promise<void> {
+    async detectRecurringPayments(recentDays = 90): Promise<void> {
         // Implementation logic to group recent paginated expenses by merchant
         // Calculate standard deviations on dates & amounts
         // Update the 'recurringPatterns' store with matches
@@ -72,7 +72,7 @@ export class AnalyticsService {
     /**
      * Return top merchants by transaction count over a paginated slice
      */
-    async getMerchantFrequency(limit: number = 10, days: number = 30): Promise<Array<{ merchantName: string, count: number }>> {
+    async getMerchantFrequency(limit = 10, days = 30): Promise<Array<{ merchantName: string, count: number }>> {
         // Dummy implementation framework
         throw new Error('Not implemented: Merchant data is encrypted in the payload, requiring in-memory decryption of the recent paginated slice to calculate frequency.');
     }

@@ -4,6 +4,7 @@ import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { IonContent, IonHeader, IonToolbar, IonTitle, IonBackButton, IonButtons, IonIcon, IonModal } from '@ionic/angular/standalone';
 import { SmsService } from '../../core/services/sms.service';
 import { CurrencyPipe } from '../../shared/pipes/currency.pipe';
+import { NotificationService } from '../../core/services/notification.service';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { addIcons } from 'ionicons';
 import { cardOutline, createOutline, closeOutline, swapHorizontal, fastFood, cart, car } from 'ionicons/icons';
@@ -18,6 +19,7 @@ import { cardOutline, createOutline, closeOutline, swapHorizontal, fastFood, car
 })
 export class MerchantDetailsComponent {
   private readonly smsService = inject(SmsService);
+  private readonly notificationService = inject(NotificationService);
   private readonly route = inject(ActivatedRoute);
 
   readonly merchantName = computed(() => decodeURIComponent(this.route.snapshot.paramMap.get('id') || 'Unknown Merchant'));
@@ -134,6 +136,7 @@ export class MerchantDetailsComponent {
     }
 
     Haptics.notification({ type: NotificationType.Success }).catch(() => { });
+    this.notificationService.success('Categories updated successfully');
     this.closeEditModal();
   }
 }

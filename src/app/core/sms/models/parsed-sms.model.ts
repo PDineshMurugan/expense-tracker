@@ -13,6 +13,7 @@ export interface ParsedSMS {
 
     accountType?: string;
     accountIdentifier?: string;
+    accountId?: string;
 
     availableBalance?: number;
 

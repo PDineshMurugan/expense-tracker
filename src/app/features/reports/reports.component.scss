@@ -20,7 +20,7 @@
     background: var(--color-surface);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
-    padding: var(--spacing-md) var(--spacing-lg);
+    padding: var(--spacing-lg);
     box-shadow: var(--shadow-md);
 }
 
@@ -45,11 +45,12 @@
 }
 
 .filter-label {
-    font-size: 0.75rem;
-    font-weight: var(--font-weight-semibold);
+    font-size: 0.85rem;
+    font-weight: var(--font-weight-bold);
     color: var(--color-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    margin-left: 8px;
 }
 
 /* KPIs */

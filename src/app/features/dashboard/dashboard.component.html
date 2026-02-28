@@ -14,7 +14,7 @@
         </div>
         <h1>Hi</h1>
       </div>
-      <button class="icon-btn">
+      <button class="icon-btn" routerLink="/tabs/transactions">
         <ion-icon name="search-outline"></ion-icon>
       </button>
     </header>
@@ -39,7 +39,7 @@
           </svg>
         </div>
         <div class="balance-stats">
-          <div class="stat-item actionable" routerLink="/settings">
+          <div class="stat-item actionable" routerLink="/tabs/settings">
             <div class="shield-icon"><div class="dot"></div></div>
             <span class="stat-label action-text">Set monthly<br>budget</span>
           </div>
@@ -47,13 +47,13 @@
       </section>
 
       <section class="action-pills">
-        <button class="pill-btn" routerLink="/reports">
+        <button class="pill-btn" routerLink="/tabs/reports">
           <div class="icon-box bar-chart">
             <div class="bar bar-1"></div><div class="bar bar-2"></div><div class="bar bar-3"></div>
           </div>
           <span>Trends</span>
         </button>
-        <button class="pill-btn" routerLink="/categories">
+        <button class="pill-btn" routerLink="/tabs/categories">
           <div class="icon-box pie-chart"><ion-icon name="pie-chart"></ion-icon></div>
           <span>Categories</span>
         </button>
@@ -62,25 +62,24 @@
       <section class="card-section">
         <div class="section-header">
           <h2>Recent transactions</h2>
-          <button class="add-btn" routerLink="/add-expense">
-            <ion-icon name="add-circle-outline"></ion-icon> Add
+          <button class="see-all-btn" routerLink="/tabs/transactions">
+             See All <ion-icon name="arrow-forward-outline"></ion-icon>
           </button>
         </div>
-        <div class="transactions-list">
+        <div class="transactions-horizontal-list">
           @for (tx of recentTransactions().slice(0, 5); track tx.id) {
-            <div class="tx-item">
-              <div class="tx-icon" [ngClass]="getCategoryColorClass(tx.categoryId)">
-                <ion-icon [name]="getCategoryIcon(tx.categoryId)"></ion-icon>
+            <div class="tx-card" (click)="editTransaction(tx)">
+              <div class="tx-card-header">
+                <div class="tx-card-icon" [ngClass]="getCategoryColorClass(tx.categoryId)">
+                  <ion-icon [name]="getCategoryIcon(tx.categoryId)"></ion-icon>
+                </div>
+                <div class="tx-type-icon" [ngClass]="getTxTypeClass(tx)">
+                  <ion-icon [name]="getTxTypeIcon(tx)"></ion-icon>
+                </div>
               </div>
-              <div class="tx-details">
-                <span class="tx-name">{{ tx.description || getCategoryName(tx.categoryId) }}</span>
-                @if (tx.accountIdentifier) {
-                  <span class="tx-subtext">{{ tx.accountIdentifier }}</span>
-                }
-              </div>
-              <div class="tx-amount-col">
-                <span class="tx-amount">{{ tx.amount | currency }} <ion-icon name="arrow-up-outline"></ion-icon></span>
-                <span class="tx-date">{{ formatRelativeDetailed(tx.date) }}</span>
+              <div class="tx-card-body">
+                <span class="tx-name">{{ tx.merchantName || tx.description || getCategoryName(tx.categoryId) }}</span>
+                <span class="tx-amount">{{ tx.amount | currency }}</span>
               </div>
             </div>
           } @empty {
@@ -89,7 +88,7 @@
         </div>
       </section>
 
-      @if (accountService.accounts().length > 0) {
+      @if (accountService.accounts().length > 0 || detectedBanks().length > 0) {
         <section class="card-section accounts-section">
           <div class="section-header-simple">
             <div class="title-with-icon">
@@ -100,11 +99,11 @@
           </div>
           <div class="accounts-scroll">
             @for (acc of accountService.accounts(); track acc.id) {
-              <div class="account-card" [ngClass]="getAccountTheme(acc.name)">
+              <div class="account-card" [ngClass]="getAccountTheme(acc.name)" [routerLink]="['/tabs/accounts', acc.id]">
                 <div class="acc-top">
                   <div class="bank-logo"><ion-icon name="business-outline"></ion-icon></div>
                   <div class="acc-balance">
-                    <span>{{ (expenseService.monthlyTotalByAccount(acc.id) || 0) | currency }} <ion-icon name="arrow-up-outline"></ion-icon></span>
+                    <span>{{ (accountSpends()[acc.id] || 0) | currency }} <ion-icon name="arrow-up-outline"></ion-icon></span>
                   </div>
                 </div>
                 <div class="acc-bottom">
@@ -113,8 +112,32 @@
                     <span class="bank-number">xx{{ acc.accountIdentifier?.slice(-4) || '0000' }}</span>
                   </div>
                   <div class="acc-status">
-                    <ion-icon name="document-outline"></ion-icon> Not available <ion-icon name="refresh-outline" class="refresh"></ion-icon>
+                     Tap to view details <ion-icon name="chevron-forward-outline" class="refresh"></ion-icon>
                   </div>
+                </div>
+              </div>
+            }
+
+            @for (bank of detectedBanks(); track bank.name) {
+              <div class="account-card theme-gradient" style="border: 1px dashed rgba(255,255,255,0.4); opacity: 0.9;">
+                <div class="acc-top" style="align-items: center;">
+                  <div class="bank-logo" style="background: rgba(255,255,255,0.2);"><ion-icon name="business-outline"></ion-icon></div>
+                  <button class="add-bank-btn-sm" (click)="addDetectedBank(bank.name)">
+                    Add <ion-icon name="add-outline"></ion-icon>
+                  </button>
+                </div>
+                <div class="acc-bottom" style="margin-top: 16px;">
+                  <div class="acc-info">
+                    <span class="bank-name">{{ bank.name }}</span>
+                    <span class="bank-number" style="font-size: 11px;">
+                      @if (bank.accIdentifier) { xx{{ bank.accIdentifier.slice(-4) }} } @else { Detected via SMS }
+                    </span>
+                  </div>
+                  @if (bank.totalAmount > 0) {
+                    <div class="acc-balance" style="font-size: 13px;">
+                      <span>{{ bank.totalAmount | currency }} <ion-icon name="arrow-down-outline" style="color: #f44336; font-size: 10px;"></ion-icon></span>
+                    </div>
+                  }
                 </div>
               </div>
             }
@@ -129,8 +152,8 @@
             <h2>Splits</h2>
           </div>
           <div class="actions">
-            <ion-icon name="add-outline" class="action-icon add"></ion-icon>
-            <ion-icon name="chevron-forward-outline" class="action-icon forward"></ion-icon>
+            <ion-icon name="add-outline" class="action-icon add" (click)="showComingSoon()"></ion-icon>
+            <ion-icon name="chevron-forward-outline" class="action-icon forward" (click)="showComingSoon()"></ion-icon>
           </div>
         </div>
         <div class="splits-content">
@@ -139,12 +162,6 @@
         </div>
       </section>
 
-      <section class="promo-banner">
-        <div class="banner-content">
-          <p class="banner-subtitle">Xiaomi Easy Finance</p>
-          <h3>THE LATEST<br>REDMI NOTE 15</h3>
-        </div>
-      </section>
     }
   </div>
 </ion-content>
